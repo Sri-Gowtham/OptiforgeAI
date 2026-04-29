@@ -7,6 +7,7 @@ export interface Project {
   description: string
   score: number
   createdAt: string
+  type?: 'mechanical' | 'architectural'
 }
 
 export interface DesignResult {
@@ -158,6 +159,8 @@ export const analysisAPI = {
     }
 
     const data = await res.json()
+    console.log('API.TS RAW RESPONSE:', data)
+    console.log('API.TS imageUrl:', data?.imageUrl)
 
     if (sessionRaw) {
       const session = JSON.parse(sessionRaw)
@@ -186,7 +189,7 @@ export const analysisAPI = {
       cost: data.estimatedCost ? `$${Number(data.estimatedCost).toLocaleString()}` : 'N/A',
       estimatedCost: data.estimatedCost,
       svgPreview: data.svgPreview || '',
-      imageUrl: data.imageUrl || '',
+      imageUrl: data.imageUrl || undefined,
       specifications: specRows,
       rawSpecifications: specs,
       components,

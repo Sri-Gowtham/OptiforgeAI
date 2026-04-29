@@ -133,13 +133,11 @@ export default function CreatePage() {
     setGenerating(true)
     setResult(null)
     try {
-      const res = await fetch('http://localhost:5000/api/analysis/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, designType }),
-      })
-      const data = await res.json()
-      console.log('API RESPONSE:', data)
+      const data = await analysisAPI.generateDesign(prompt, designType)
+      console.log('RAW DATA FROM API:', data)
+      console.log('FULL API RESPONSE:', data)
+      console.log('IMAGE URL:', data?.imageUrl)
+      console.log('RESULT STATE SET:', JSON.stringify(data).slice(0, 200))
       setResult(data)
       toast.success('Design generated successfully')
     } catch (err: unknown) {
@@ -399,35 +397,37 @@ export default function CreatePage() {
               </div>
 
               {/* AI-Generated Image Preview */}
-              <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">AI-Generated Design Image</label>
-                  <span className="px-2 py-1 rounded-full bg-indigo-600/20 text-indigo-300 text-xs font-semibold">
-                    AI Generated
-                  </span>
-                </div>
-                <div className="bg-white/[0.02] rounded-xl overflow-hidden flex items-center justify-center min-h-64 border border-white/[0.06]">
-                  {result?.imageUrl && (
+              {result && (
+                <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">AI-Generated Design Image</label>
+                    <span className="px-2 py-1 rounded-full bg-indigo-600/20 text-indigo-300 text-xs font-semibold">AI Generated</span>
+                  </div>
+
+                  {/* Debug log — remove after confirming render */}
+                  {(() => { console.log('FINAL IMAGE URL:', result.imageUrl); return null; })()}
+
+                  {result.imageUrl ? (
                     <img
                       src={result.imageUrl}
-                      alt="Generated Design"
-                      className="w-full rounded-lg mt-4"
+                      alt="design preview"
+                      referrerPolicy="no-referrer"
+                      className="w-full max-h-[600px] object-contain rounded-xl"
                     />
+                  ) : result.svgPreview ? (
+                    <div
+                      className="w-full bg-[#0f0f1a] p-4 rounded-xl"
+                      dangerouslySetInnerHTML={{ __html: result.svgPreview }}
+                    />
+                  ) : (
+                    <div className="text-white/30 text-sm py-16 text-center">No image generated</div>
                   )}
-                  {!result?.imageUrl && (
-                    <div className="text-white/30 text-sm py-16">No image generated</div>
-                  )}
+
+                  {/* Static sanity-check image — confirms <img> renders at all */}
+                  <p className="text-white/30 text-xs mt-4 mb-1">Static test (should always show):</p>
+                  <img src="https://picsum.photos/500/200" alt="static test" className="w-full rounded-lg" />
                 </div>
-                {/* Static test image — confirms external images load correctly */}
-                <img
-                  src="https://image.pollinations.ai/prompt/test"
-                  alt="static test"
-                  className="w-full mt-4"
-                />
-                <button className="mt-4 flex items-center gap-2 text-teal-400 hover:text-teal-300 font-semibold text-sm transition-colors">
-                  <Edit3 size={14} /> Open in Editor
-                </button>
-              </div>
+              )}
 
               {/* Two-column: Specifications & Components */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -437,7 +437,7 @@ export default function CreatePage() {
                     Specifications
                   </label>
                   <div className="space-y-3">
-                    {result.specifications.map((s, i) => (
+                    {result.specifications.map((s: { label: string; value: string }, i: number) => (
                       <div
                         key={i}
                         className={`flex items-center justify-between px-4 py-3 rounded-lg ${
@@ -457,7 +457,7 @@ export default function CreatePage() {
                     Components
                   </label>
                   <div className="space-y-0 rounded-lg overflow-hidden border border-white/[0.06]">
-                    {result.components.map((c, i) => (
+                    {result.components.map((c: string, i: number) => (
                       <div
                         key={i}
                         className={`px-4 py-3 text-sm text-white/70 ${
@@ -478,7 +478,7 @@ export default function CreatePage() {
                 </label>
                 <div className="relative pl-8 space-y-6">
                   <div className="absolute left-2 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-600 to-indigo-600/20 rounded-full" />
-                  {result.manufacturingSteps.map((step, i) => (
+                  {result.manufacturingSteps.map((step: string, i: number) => (
                     <div key={i} className="flex gap-4">
                       <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600/30 text-indigo-400 text-xs font-bold shrink-0 mt-1 relative z-10">
                         {i + 1}
@@ -519,7 +519,7 @@ export default function CreatePage() {
                 {/* Chat messages */}
                 {chatMessages.length > 0 && (
                   <div className="space-y-3 mb-4 pb-4 border-b border-indigo-600/20">
-                    {chatMessages.map((msg, i) => (
+                    {chatMessages.map((msg, i: number) => (
                       <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div
                           className={`max-w-xs rounded-lg px-4 py-2 text-sm ${

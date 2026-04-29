@@ -8,10 +8,13 @@ console.log('Replicate token loaded:', !!process.env.REPLICATE_API_TOKEN);
 // ── Image generation via Pollinations.ai (free, no API key) ──────────────────
 
 async function generateImageUrl(prompt: string): Promise<string> {
-  const encoded = encodeURIComponent(prompt);
+  // Strip trailing punctuation and extra whitespace before encoding
+  const cleanPrompt = prompt.trim().replace(/[.\s]+$/, '');
+  const encodedPrompt = encodeURIComponent(cleanPrompt);
   const seed = Date.now();
-  // Pollinations returns image directly at this URL — it's stable and cacheable
-  return `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`;
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`;
+  console.log('GENERATED IMAGE URL:', imageUrl);
+  return imageUrl;
 }
 
 // ── AIService ─────────────────────────────────────────────────────────────────
@@ -21,7 +24,7 @@ export class AIService {
   async generateImage(prompt: string): Promise<string> {
     console.log('Prompt sent to image API:', prompt);
     const imageUrl = await generateImageUrl(prompt);
-    console.log('Image URL:', imageUrl);
+    console.log('FINAL IMAGE URL:', imageUrl);
     return imageUrl;
   }
 
@@ -37,13 +40,15 @@ export class AIService {
       weight: 'Estimated',
     };
 
-    const finalPrompt = `Industrial ${designType} design. Description: ${userPrompt}. Style: engineering drawing, industrial design, detailed, realistic, CAD style, white background, professional product photography`;
+    // Clean the user prompt before building the final prompt string
+    const cleanUserPrompt = userPrompt.trim().replace(/[.\s]+$/, '');
+    const finalPrompt = `Industrial ${designType} design. Description: ${cleanUserPrompt}. Style: engineering drawing, industrial design, detailed, realistic, CAD style, white background, professional product photography`;
 
-    console.log('Prompt:', finalPrompt);
+    console.log('FINAL PROMPT:', finalPrompt);
 
     const imageUrl = await this.generateImage(finalPrompt);
 
-    console.log('Image URL:', imageUrl);
+    console.log('RETURNING imageUrl:', imageUrl);
 
     return {
       ...design,
