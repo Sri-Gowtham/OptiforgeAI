@@ -390,8 +390,26 @@ export default function CreatePage() {
                   >
                     <RefreshCw size={16} /> Generate New
                   </button>
-                  <button className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.03] hover:bg-white/[0.06] text-white/60 font-medium text-sm rounded-lg transition-all">
-                    <Download size={16} /> Export
+                  <button className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.03] hover:bg-white/[0.06] text-white/60 font-medium text-sm rounded-lg transition-all"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('http://localhost:5000/api/export/dxf', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(result),
+                        })
+                        if (!res.ok) throw new Error('DXF export failed')
+                        const blob = await res.blob()
+                        const url  = window.URL.createObjectURL(blob)
+                        const a    = document.createElement('a')
+                        a.href = url; a.download = 'design.dxf'; a.click()
+                        window.URL.revokeObjectURL(url)
+                      } catch (err: unknown) {
+                        alert(err instanceof Error ? err.message : 'Export failed')
+                      }
+                    }}
+                  >
+                    <Download size={16} /> Export DXF
                   </button>
                 </div>
               </div>

@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import routes from './api/routes/index';
+import exportRoutes from './api/routes/export.routes';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date()
 
 // API Routes
 app.use('/api', routes);
+app.use('/api/export', exportRoutes);
 
 // 404
 app.use((_req, res) => res.status(404).json({ error: 'Route not found' }));
