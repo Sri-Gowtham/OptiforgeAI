@@ -109,7 +109,7 @@ export default function CreatePage() {
   const [designType, setDesignType] = useState<DesignType>('mechanical')
   const [prompt, setPrompt] = useState('')
   const [generating, setGenerating] = useState(false)
-  const [result, setResult] = useState<DesignResult | null>(null)
+  const [result, setResult] = useState<any>(null)
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [projectName, setProjectName] = useState('')
   const [existingProjects, setExistingProjects] = useState<Project[]>([])
@@ -133,8 +133,14 @@ export default function CreatePage() {
     setGenerating(true)
     setResult(null)
     try {
-      const r = await analysisAPI.generateDesign(prompt, designType)
-      setResult(r)
+      const res = await fetch('http://localhost:5000/api/analysis/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, designType }),
+      })
+      const data = await res.json()
+      console.log('API RESPONSE:', data)
+      setResult(data)
       toast.success('Design generated successfully')
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Generation failed')
@@ -188,19 +194,19 @@ export default function CreatePage() {
   if (loading || !user) return null
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a0f]">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-[#0a0a0f]">
       <Sidebar />
 
       <main className="flex-1 overflow-auto">
         <div className="max-w-4xl mx-auto px-8 py-8">
           {/* Breadcrumb */}
           {!result && (
-            <div className="flex items-center gap-2 text-white/50 text-sm mb-8">
-              <button onClick={() => router.push('/dashboard')} className="hover:text-white/70 transition-colors">
+            <div className="flex items-center gap-2 text-gray-500 dark:text-white/50 text-sm mb-8">
+              <button onClick={() => router.push('/dashboard')} className="hover:text-gray-700 dark:hover:text-white/70 transition-colors">
                 Dashboard
               </button>
-              <ChevronRight size={14} className="text-white/30" />
-              <span className="text-white">AI Create</span>
+              <ChevronRight size={14} className="text-gray-300 dark:text-white/30" />
+              <span className="text-gray-900 dark:text-white">AI Create</span>
             </div>
           )}
 
@@ -211,9 +217,9 @@ export default function CreatePage() {
                 <div className="p-3 rounded-xl bg-indigo-600/20 text-indigo-400">
                   <Sparkles size={24} />
                 </div>
-                <h1 className="text-3xl font-bold text-white">AI Design Creation</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AI Design Creation</h1>
               </div>
-              <p className="text-white/50 text-base">Describe your design — Claude AI generates complete specifications</p>
+              <p className="text-gray-500 dark:text-white/50 text-base">Describe your design — Claude AI generates complete specifications</p>
             </div>
           )}
 
@@ -222,7 +228,7 @@ export default function CreatePage() {
           {/* Templates row */}
           {!result && !generating && (
             <div className="mb-10">
-              <label className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-3 block">
+              <label className="text-gray-500 dark:text-white/60 text-xs font-semibold uppercase tracking-widest mb-3 block">
                 Quick start templates:
               </label>
               <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
@@ -230,7 +236,7 @@ export default function CreatePage() {
                   <button
                     key={i}
                     onClick={() => setPrompt(t.text)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.05] border border-white/[0.1] hover:border-indigo-600/40 text-white/70 hover:text-white/90 text-sm whitespace-nowrap transition-all shrink-0"
+                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.1] hover:border-indigo-600/40 text-gray-600 dark:text-white/70 hover:text-gray-900 dark:hover:text-white/90 text-sm whitespace-nowrap transition-all shrink-0"
                   >
                     <span>{t.icon}</span>
                     {t.text}
@@ -243,7 +249,7 @@ export default function CreatePage() {
           {/* Step 1: Design Type */}
           {!result && !generating && (
             <div className="mb-10">
-              <label className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-4 block">
+              <label className="text-gray-500 dark:text-white/60 text-xs font-semibold uppercase tracking-widest mb-4 block">
                 Step 1 — Design type
               </label>
               <div className="grid grid-cols-2 gap-4">
@@ -260,7 +266,7 @@ export default function CreatePage() {
                           ? isMech
                             ? 'border-indigo-600/60 bg-indigo-600/10 shadow-lg shadow-indigo-600/20'
                             : 'border-purple-600/60 bg-purple-600/10 shadow-lg shadow-purple-600/20'
-                          : 'border-white/[0.08] bg-white/[0.02] hover:border-white/[0.15] hover:bg-white/[0.05]'
+                          : 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.02] hover:border-gray-300 dark:hover:border-white/[0.15] hover:bg-gray-50 dark:hover:bg-white/[0.05]'
                       }`}
                     >
                       {active && (
@@ -278,10 +284,10 @@ export default function CreatePage() {
                         <Icon size={32} />
                       </div>
                       <div className="text-left">
-                        <h3 className={`text-lg font-bold mb-2 ${active ? 'text-white' : 'text-white/70'}`}>
+                        <h3 className={`text-lg font-bold mb-2 ${active ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-white/70'}`}>
                           {isMech ? 'Mechanical Design' : 'Architectural Design'}
                         </h3>
-                        <p className={`text-sm mb-3 ${active ? 'text-white/70' : 'text-white/50'}`}>
+                        <p className={`text-sm mb-3 ${active ? 'text-gray-600 dark:text-white/70' : 'text-gray-500 dark:text-white/50'}`}>
                           {isMech
                             ? 'Gears, brackets, frames, machine parts, assemblies'
                             : 'Floor plans, structural elements, buildings'}
@@ -300,7 +306,7 @@ export default function CreatePage() {
           {/* Step 2: Prompt Input */}
           {!result && !generating && (
             <div className="mb-8">
-              <label className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-4 block">
+              <label className="text-gray-500 dark:text-white/60 text-xs font-semibold uppercase tracking-widest mb-4 block">
                 Step 2 — Describe your design
               </label>
               <div className="space-y-3">
@@ -310,9 +316,9 @@ export default function CreatePage() {
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value.slice(0, 1000))}
                     placeholder="Describe your design in detail. Include materials, dimensions, loads, constraints, and any special requirements…"
-                    className="w-full bg-white/[0.03] border border-white/[0.1] rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 focus:bg-white/[0.05] transition-all resize-none leading-relaxed"
+                    className="w-full bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.1] rounded-xl px-4 py-3 text-gray-900 dark:text-white text-sm placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 dark:focus:bg-white/[0.05] transition-all resize-none leading-relaxed"
                   />
-                  <div className="absolute bottom-3 right-4 text-xs text-white/30">
+                  <div className="absolute bottom-3 right-4 text-xs text-gray-400 dark:text-white/30">
                     {prompt.length}/1000
                   </div>
                 </div>
@@ -356,18 +362,18 @@ export default function CreatePage() {
           {result && !generating && (
             <div className="space-y-6">
               {/* Overview Card */}
-              <div className="relative bg-white/[0.02] border-2 rounded-2xl p-8 overflow-hidden">
+              <div className="relative bg-gray-50 dark:bg-white/[0.02] border-2 border-gray-200 dark:border-white/[0.08] rounded-2xl p-8 overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 to-purple-600" />
                 <div className="flex items-start justify-between gap-6 mb-6">
                   <div className="flex-1">
-                    <h2 className="text-3xl font-bold text-white mb-2">{result.name}</h2>
+                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{result.name}</h2>
                     <span className="inline-block px-2.5 py-1 rounded-full bg-indigo-600/20 text-indigo-300 text-xs font-semibold mb-4">
                       {designType === 'mechanical' ? '⚙️ Mechanical' : '🏛️ Architectural'}
                     </span>
-                    <p className="text-white/60 text-sm leading-relaxed max-w-2xl">{result.designNotes}</p>
+                    <p className="text-gray-600 dark:text-white/60 text-sm leading-relaxed max-w-2xl">{result.designNotes}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-white/40 text-xs mb-1 uppercase tracking-wider">Cost estimate</p>
+                    <p className="text-gray-500 dark:text-white/40 text-xs mb-1 uppercase tracking-wider">Cost estimate</p>
                     <p className="text-3xl font-bold text-indigo-400">{result.cost}</p>
                   </div>
                 </div>
@@ -392,17 +398,32 @@ export default function CreatePage() {
                 </div>
               </div>
 
-              {/* SVG Preview */}
+              {/* AI-Generated Image Preview */}
               <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-8">
                 <div className="flex items-center justify-between mb-6">
-                  <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">Design Schematic</label>
+                  <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">AI-Generated Design Image</label>
                   <span className="px-2 py-1 rounded-full bg-indigo-600/20 text-indigo-300 text-xs font-semibold">
                     AI Generated
                   </span>
                 </div>
-                <div className="bg-white/[0.02] rounded-xl p-8 flex items-center justify-center min-h-64 border border-white/[0.06]">
-                  <div className="w-full max-w-sm" dangerouslySetInnerHTML={{ __html: result.svgPreview }} />
+                <div className="bg-white/[0.02] rounded-xl overflow-hidden flex items-center justify-center min-h-64 border border-white/[0.06]">
+                  {result?.imageUrl && (
+                    <img
+                      src={result.imageUrl}
+                      alt="Generated Design"
+                      className="w-full rounded-lg mt-4"
+                    />
+                  )}
+                  {!result?.imageUrl && (
+                    <div className="text-white/30 text-sm py-16">No image generated</div>
+                  )}
                 </div>
+                {/* Static test image — confirms external images load correctly */}
+                <img
+                  src="https://image.pollinations.ai/prompt/test"
+                  alt="static test"
+                  className="w-full mt-4"
+                />
                 <button className="mt-4 flex items-center gap-2 text-teal-400 hover:text-teal-300 font-semibold text-sm transition-colors">
                   <Edit3 size={14} /> Open in Editor
                 </button>

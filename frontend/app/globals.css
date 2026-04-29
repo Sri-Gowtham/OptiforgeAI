@@ -39,7 +39,26 @@
   --sidebar-ring: oklch(0.55 0.22 264);
 }
 
-/* Dark-only theme — all tokens defined in :root */
+/* Light theme overrides — applied when .dark class is absent from <html> */
+:root:not(.dark) {
+  --background: #f8fafc;
+  --foreground: oklch(0.13 0.02 264);
+  --card: #ffffff;
+  --card-foreground: oklch(0.13 0.02 264);
+  --popover: #ffffff;
+  --popover-foreground: oklch(0.13 0.02 264);
+  --secondary: oklch(0.95 0.01 264);
+  --secondary-foreground: oklch(0.3 0.01 264);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --border: rgba(0,0,0,0.08);
+  --input: rgba(0,0,0,0.05);
+  --sidebar: #f1f5f9;
+  --sidebar-foreground: oklch(0.13 0.02 264);
+  --sidebar-accent: rgba(0,0,0,0.04);
+  --sidebar-accent-foreground: oklch(0.13 0.02 264);
+  --sidebar-border: rgba(0,0,0,0.06);
+}
 
 @theme inline {
   --font-sans: 'Geist', 'Geist Fallback';

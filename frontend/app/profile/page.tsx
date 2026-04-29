@@ -35,7 +35,7 @@ interface ProfileData {
 }
 
 function SkeletonLine({ w = 'w-full', h = 'h-4' }: { w?: string; h?: string }) {
-  return <div className={`${w} ${h} bg-white/[0.06] rounded animate-pulse`} />
+  return <div className={`${w} ${h} bg-gray-200 dark:bg-white/[0.06] rounded animate-pulse`} />
 }
 
 const features = [
@@ -102,13 +102,13 @@ export default function ProfilePage() {
     : '—'
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a0f]">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-[#0a0a0f]">
       <Sidebar />
 
       <main className="flex-1 overflow-auto">
         <div className="max-w-2xl mx-auto px-8 py-8">
           {/* Profile Hero Card */}
-          <div className="bg-gradient-to-br from-indigo-600/5 to-purple-600/5 border border-white/[0.08] rounded-2xl p-8 mb-8 flex items-center justify-between gap-6">
+          <div className="bg-gradient-to-br from-indigo-600/5 to-purple-600/5 border border-gray-200 dark:border-white/[0.08] rounded-2xl p-8 mb-8 flex items-center justify-between gap-6">
             <div className="flex items-center gap-6">
               {/* Avatar with animation */}
               <style>{`
@@ -135,8 +135,8 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <>
-                    <h1 className="text-2xl font-bold text-white mb-1">{username}</h1>
-                    <p className="text-white/50 text-sm mb-3">{user.email}</p>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{username}</h1>
+                    <p className="text-gray-500 dark:text-white/50 text-sm mb-3">{user.email}</p>
                     <div className="flex items-center gap-2">
                       <Calendar size={14} className="text-white/40" />
                       <span className="text-white/50 text-xs">Member since {joinDate}</span>
@@ -160,41 +160,41 @@ export default function ProfilePage() {
           </div>
 
           {/* Stats Row */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
+            <div className="grid grid-cols-3 gap-4 mb-8">
+            <div className="bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.08] rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 rounded-lg bg-indigo-600/20 text-indigo-400">
                   <FolderOpen size={20} />
                 </div>
-                <p className="text-white/50 text-xs font-medium">Projects Created</p>
+                <p className="text-gray-500 dark:text-white/50 text-xs font-medium">Projects Created</p>
               </div>
               {fetchLoading ? (
                 <SkeletonLine w="w-12" h="h-8" />
               ) : (
-                <p className="text-4xl font-bold text-white">{profile?.projectsCount ?? 0}</p>
+                <p className="text-4xl font-bold text-gray-900 dark:text-white">{profile?.projectsCount ?? 0}</p>
               )}
             </div>
 
-            <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
+            <div className="bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.08] rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 rounded-lg bg-purple-600/20 text-purple-400">
                   <RefreshCw size={20} />
                 </div>
-                <p className="text-white/50 text-xs font-medium">Analyses Run</p>
+                <p className="text-gray-500 dark:text-white/50 text-xs font-medium">Analyses Run</p>
               </div>
               {fetchLoading ? (
                 <SkeletonLine w="w-12" h="h-8" />
               ) : (
-                <p className="text-4xl font-bold text-white">{profile?.analysesCount ?? 0}</p>
+                <p className="text-4xl font-bold text-gray-900 dark:text-white">{profile?.analysesCount ?? 0}</p>
               )}
             </div>
 
-            <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
+            <div className="bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.08] rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 rounded-lg bg-cyan-600/20 text-cyan-400">
                   <Sparkles size={20} />
                 </div>
-                <p className="text-white/50 text-xs font-medium">Designs Generated</p>
+                <p className="text-gray-500 dark:text-white/50 text-xs font-medium">Designs Generated</p>
               </div>
               {fetchLoading ? (
                 <SkeletonLine w="w-12" h="h-8" />
@@ -205,18 +205,18 @@ export default function ProfilePage() {
           </div>
 
           {/* Account Information Card */}
-          <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl overflow-hidden mb-8">
-            <div className="flex items-center gap-2 px-6 py-4 border-b border-white/[0.08] bg-white/[0.01]">
-              <Settings size={16} className="text-white/60" />
-              <h3 className="text-white font-semibold text-sm">Account Information</h3>
+          <div className="bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.08] rounded-2xl overflow-hidden mb-8">
+            <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-200 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.01]">
+              <Settings size={16} className="text-gray-500 dark:text-white/60" />
+              <h3 className="text-gray-900 dark:text-white font-semibold text-sm">Account Information</h3>
             </div>
 
-            <div className="divide-y divide-white/[0.06]">
+            <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
               {/* Email */}
               <div className="px-6 py-4 flex items-center justify-between">
                 <div>
-                  <p className="text-white/50 text-xs uppercase tracking-widest mb-1">Email</p>
-                  <p className="text-white font-medium text-sm">{user.email}</p>
+                  <p className="text-gray-500 dark:text-white/50 text-xs uppercase tracking-widest mb-1">Email</p>
+                  <p className="text-gray-900 dark:text-white font-medium text-sm">{user.email}</p>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-green-500/15 text-green-400 text-xs font-semibold border border-green-500/30 flex items-center gap-1">
                   <Check size={12} />
@@ -227,8 +227,8 @@ export default function ProfilePage() {
               {/* Account ID */}
               <div className="px-6 py-4 flex items-center justify-between">
                 <div>
-                  <p className="text-white/50 text-xs uppercase tracking-widest mb-1">Account ID</p>
-                  <p className="text-white/70 font-mono text-xs">{user.email.split('@')[0].slice(0, 12)}…</p>
+                  <p className="text-gray-500 dark:text-white/50 text-xs uppercase tracking-widest mb-1">Account ID</p>
+                  <p className="text-gray-600 dark:text-white/70 font-mono text-xs">{user.email.split('@')[0].slice(0, 12)}…</p>
                 </div>
                 <button
                   onClick={handleCopyAccountId}
@@ -247,8 +247,8 @@ export default function ProfilePage() {
               {/* Plan */}
               <div className="px-6 py-4 flex items-center justify-between">
                 <div>
-                  <p className="text-white/50 text-xs uppercase tracking-widest mb-1">Plan</p>
-                  <p className="text-white font-medium text-sm">Free</p>
+                  <p className="text-gray-500 dark:text-white/50 text-xs uppercase tracking-widest mb-1">Plan</p>
+                  <p className="text-gray-900 dark:text-white font-medium text-sm">Free</p>
                 </div>
                 <button className="text-indigo-400 hover:text-indigo-300 text-xs font-semibold transition-colors">
                   Upgrade
@@ -258,16 +258,16 @@ export default function ProfilePage() {
               {/* Member Since */}
               <div className="px-6 py-4 flex items-center justify-between">
                 <div>
-                  <p className="text-white/50 text-xs uppercase tracking-widest mb-1">Member Since</p>
-                  <p className="text-white font-medium text-sm">{joinDate}</p>
+                  <p className="text-gray-500 dark:text-white/50 text-xs uppercase tracking-widest mb-1">Member Since</p>
+                  <p className="text-gray-900 dark:text-white font-medium text-sm">{joinDate}</p>
                 </div>
               </div>
 
               {/* Last Active */}
               <div className="px-6 py-4 flex items-center justify-between">
                 <div>
-                  <p className="text-white/50 text-xs uppercase tracking-widest mb-1">Last Active</p>
-                  <p className="text-white font-medium text-sm">Today</p>
+                  <p className="text-gray-500 dark:text-white/50 text-xs uppercase tracking-widest mb-1">Last Active</p>
+                  <p className="text-gray-900 dark:text-white font-medium text-sm">Today</p>
                 </div>
               </div>
             </div>
@@ -325,10 +325,10 @@ export default function ProfilePage() {
           </div>
 
           {/* Usage Stats */}
-          <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-8 mb-8">
+          <div className="bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.08] rounded-2xl p-8 mb-8">
             <div className="flex items-center gap-2 mb-6">
               <BarChart3 size={18} className="text-white/60" />
-              <h3 className="text-white font-semibold">This Month</h3>
+              <h3 className="text-gray-900 dark:text-white font-semibold">This Month</h3>
             </div>
 
             <div className="space-y-6">

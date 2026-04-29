@@ -12,12 +12,18 @@ export interface Project {
 export interface DesignResult {
   name: string
   cost: string
+  estimatedCost?: number
   svgPreview: string
+  imageUrl?: string
   specifications: { label: string; value: string }[]
+  rawSpecifications?: Record<string, any>
   components: string[]
   manufacturingSteps: string[]
   safetyNotes: string
   designNotes: string
+  description?: string
+  designType?: string
+  safetyConsiderations?: string[]
 }
 
 export interface OptimizerResult {
@@ -129,85 +135,67 @@ export const projectsAPI = {
   },
 }
 
-// ─── Analysis API ─────────────────────────────────────────────────────────────
 
-const mechanicalSVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <rect x="20" y="80" width="160" height="40" rx="4" fill="#312e81" stroke="#6366f1" stroke-width="2"/>
-  <circle cx="60" cy="100" r="20" fill="#1e1b4b" stroke="#6366f1" stroke-width="2"/>
-  <circle cx="140" cy="100" r="20" fill="#1e1b4b" stroke="#6366f1" stroke-width="2"/>
-  <circle cx="60" cy="100" r="8" fill="#6366f1"/>
-  <circle cx="140" cy="100" r="8" fill="#6366f1"/>
-  <rect x="85" y="70" width="30" height="60" rx="2" fill="#312e81" stroke="#818cf8" stroke-width="1.5"/>
-  <line x1="20" y1="60" x2="180" y2="60" stroke="#4f46e5" stroke-width="1" stroke-dasharray="4 2"/>
-  <line x1="20" y1="140" x2="180" y2="140" stroke="#4f46e5" stroke-width="1" stroke-dasharray="4 2"/>
-  <text x="100" y="175" text-anchor="middle" fill="#818cf8" font-size="10" font-family="monospace">ASSEMBLY v1.0</text>
-</svg>`
-
-const architecturalSVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <rect x="30" y="100" width="140" height="80" fill="#312e81" stroke="#6366f1" stroke-width="2"/>
-  <polygon points="100,20 20,100 180,100" fill="#1e1b4b" stroke="#6366f1" stroke-width="2"/>
-  <rect x="85" y="140" width="30" height="40" fill="#1e1b4b" stroke="#818cf8" stroke-width="1.5"/>
-  <rect x="45" y="115" width="25" height="25" fill="#4f46e5" stroke="#818cf8" stroke-width="1"/>
-  <rect x="130" y="115" width="25" height="25" fill="#4f46e5" stroke="#818cf8" stroke-width="1"/>
-  <line x1="30" y1="190" x2="170" y2="190" stroke="#4f46e5" stroke-width="1" stroke-dasharray="4 2"/>
-  <text x="100" y="198" text-anchor="middle" fill="#818cf8" font-size="9" font-family="monospace">FLOOR PLAN v1.0</text>
-</svg>`
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
 export const analysisAPI = {
   async generateDesign(prompt: string, designType: "mechanical" | "architectural"): Promise<DesignResult> {
-    await delay(2500)
-    const isMech = designType === "mechanical"
     const sessionRaw = localStorage.getItem("optiforge_session")
+    const token = sessionRaw ? JSON.parse(sessionRaw).token : null
+
+    const res = await fetch(`${API_BASE}/api/analysis/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ prompt, designType }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || `Generation failed (${res.status})`)
+    }
+
+    const data = await res.json()
+
     if (sessionRaw) {
       const session = JSON.parse(sessionRaw)
       const current = parseInt(localStorage.getItem(`optiforge_analyses_${session.email}`) || "0")
       localStorage.setItem(`optiforge_analyses_${session.email}`, String(current + 1))
     }
+
+    // Normalise backend response → DesignResult shape
+    const specs = data.specifications || {}
+    const specRows: { label: string; value: string }[] = Object.entries(specs)
+      .filter(([k]) => k !== 'materials')
+      .map(([k, v]) => ({
+        label: k.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()),
+        value: Array.isArray(v) ? (v as string[]).join(', ') : String(v),
+      }))
+    if (specs.materials) {
+      specRows.unshift({ label: 'Materials', value: (specs.materials as string[]).join(', ') })
+    }
+
+    const components: string[] = (data.components || []).map(
+      (c: any) => `${c.name}${c.material ? ` (${c.material})` : ''}`
+    )
+
     return {
-      name: isMech ? "Precision Drive Assembly Mk.II" : "Modular Commercial Hub",
-      cost: isMech ? "$4,280 – $6,100" : "$312,000 – $480,000",
-      svgPreview: isMech ? mechanicalSVG : architecturalSVG,
-      specifications: isMech
-        ? [
-            { label: "Material", value: "6061-T6 Aluminum" },
-            { label: "Tolerance", value: "±0.02 mm" },
-            { label: "Weight", value: "3.4 kg" },
-            { label: "Max Load", value: "850 N" },
-            { label: "Surface Finish", value: "Ra 1.6 μm" },
-            { label: "Operating Temp", value: "-20°C to 120°C" },
-          ]
-        : [
-            { label: "Floor Area", value: "2,400 m²" },
-            { label: "Stories", value: "4 levels" },
-            { label: "Structure", value: "Steel Frame" },
-            { label: "Occupancy", value: "320 persons" },
-            { label: "Fire Rating", value: "2-hour" },
-            { label: "Energy Class", value: "A+" },
-          ],
-      components: isMech
-        ? ["Drive shaft (4140 steel)", "Ball bearings (6205-2RS)", "Housing (A380 die-cast)", "Seals & gaskets", "Mounting brackets", "Fastener kit M8"]
-        : ["Structural steel columns", "Composite floor decking", "Curtain wall glazing", "HVAC ductwork", "Elevator cores (×2)", "Parking substructure"],
-      manufacturingSteps: isMech
-        ? [
-            "Machine drive shaft to tolerance on CNC lathe",
-            "Press-fit bearings into housing bores",
-            "Mill mounting faces to flatness <0.01 mm",
-            "Assemble sub-components with thread-lock",
-            "Conduct load test at 120% rated capacity",
-            "Apply anodize coating and final inspection",
-          ]
-        : [
-            "Excavate and pour reinforced concrete foundations",
-            "Erect structural steel frame and secure connections",
-            "Install composite decking and pour concrete slabs",
-            "Fit curtain wall and external cladding system",
-            "Install MEP services (mechanical, electrical, plumbing)",
-            "Interior fit-out, commissioning and sign-off",
-          ],
-      safetyNotes: isMech
-        ? "Ensure all rotating parts have guards installed. Rated for static loads only — dynamic fatigue analysis required before deployment in cyclic-load environments."
-        : "Structural calculations must be reviewed by a licensed PE. Building permit and third-party inspection required before occupancy.",
-      designNotes: `Generated from prompt: "${prompt.slice(0, 120)}${prompt.length > 120 ? "…" : ""}". This design is a starting point — verify with domain-specific analysis before fabrication or construction.`,
+      name: data.name || data.title || 'Design',
+      cost: data.estimatedCost ? `$${Number(data.estimatedCost).toLocaleString()}` : 'N/A',
+      estimatedCost: data.estimatedCost,
+      svgPreview: data.svgPreview || '',
+      imageUrl: data.imageUrl || '',
+      specifications: specRows,
+      rawSpecifications: specs,
+      components,
+      manufacturingSteps: data.manufacturingSteps || [],
+      safetyNotes: (data.safetyConsiderations || []).join(' '),
+      designNotes: data.designNotes || data.description || '',
+      description: data.description,
+      designType: data.designType,
+      safetyConsiderations: data.safetyConsiderations,
     }
   },
 

@@ -184,7 +184,7 @@ export default function OptimizerPage() {
   if (loading || !user) return null
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a0f]">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-[#0a0a0f]">
       <Sidebar />
 
       <main className="flex-1 overflow-auto">
@@ -195,20 +195,20 @@ export default function OptimizerPage() {
               <div className="p-3 rounded-xl bg-indigo-600/20 text-indigo-400">
                 <RefreshCw size={24} className={running ? 'animate-spin' : ''} />
               </div>
-              <h1 className="text-3xl font-bold text-white">AI Optimizer</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">AI Optimizer</h1>
             </div>
-            <p className="text-white/50 text-base">Get AI-powered structural analysis and optimization suggestions</p>
+            <p className="text-gray-500 dark:text-white/50 text-base">Get AI-powered structural analysis and optimization suggestions</p>
           </div>
 
           {!result && !running && (
             <>
               {/* Input Card */}
-              <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-8 mb-8 space-y-6">
-                <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">Design Input</label>
+              <div className="bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.08] rounded-2xl p-8 mb-8 space-y-6">
+                <label className="text-gray-500 dark:text-white/60 text-xs font-semibold uppercase tracking-widest">Design Input</label>
 
                 {/* Project Selector */}
                 <div className="space-y-2">
-                  <label className="text-sm text-white/70 font-medium">Select Project</label>
+                  <label className="text-sm text-gray-600 dark:text-white/70 font-medium">Select Project</label>
                   <div className="relative">
                     <select
                       value={selectedProject}
@@ -257,7 +257,7 @@ export default function OptimizerPage() {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Include: materials used, dimensions, load requirements, purpose, any known issues for best results"
-                    className="w-full bg-white/[0.03] border border-white/[0.1] rounded-xl px-4 py-3 text-white text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 focus:bg-white/[0.05] transition-all resize-none leading-relaxed"
+                    className="w-full bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.1] rounded-xl px-4 py-3 text-gray-900 dark:text-white text-sm placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all resize-none leading-relaxed"
                   />
                 </div>
 
@@ -357,8 +357,8 @@ export default function OptimizerPage() {
               {/* 3 Metric Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Score Card */}
-                <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
-                  <p className="text-white/50 text-xs uppercase tracking-widest mb-4">Overall Score</p>
+                <div className="bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.08] rounded-2xl p-6">
+                  <p className="text-gray-500 dark:text-white/50 text-xs uppercase tracking-widest mb-4">Overall Score</p>
                   <div className="flex items-end justify-between gap-4">
                     <div>
                       <div
@@ -399,9 +399,9 @@ export default function OptimizerPage() {
                 </div>
 
                 {/* Issues Card */}
-                <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
-                  <p className="text-white/50 text-xs uppercase tracking-widest mb-4">Issues Found</p>
-                  <p className="text-5xl font-bold text-white mb-4">{result.issuesCount}</p>
+                <div className="bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.08] rounded-2xl p-6">
+                  <p className="text-gray-500 dark:text-white/50 text-xs uppercase tracking-widest mb-4">Issues Found</p>
+                  <p className="text-5xl font-bold text-gray-900 dark:text-white mb-4">{result.issuesCount}</p>
                   <div className="space-y-2 text-sm">
                     {result.suggestions.filter((s) => s.severity === 'HIGH').length > 0 && (
                       <div className="flex items-center gap-2">
@@ -431,8 +431,8 @@ export default function OptimizerPage() {
                 </div>
 
                 {/* Cost Card */}
-                <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
-                  <p className="text-white/50 text-xs uppercase tracking-widest mb-4">Cost Estimate</p>
+                <div className="bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.08] rounded-2xl p-6">
+                  <p className="text-gray-500 dark:text-white/50 text-xs uppercase tracking-widest mb-4">Cost Estimate</p>
                   <p className="text-4xl font-bold text-indigo-400 mb-3">{result.costEstimate}</p>
                   <p className="text-white/40 text-xs">Estimated manufacturing cost</p>
                 </div>

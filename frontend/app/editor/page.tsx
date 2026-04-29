@@ -143,7 +143,7 @@ export default function EditorPage() {
   if (loading || !user) return null
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a0f]">
+    <div className="flex min-h-screen bg-[#0a0a0f] dark:bg-[#0a0a0f]">
       <Sidebar />
 
       {/* Editor Area */}

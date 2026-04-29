@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import {
   LayoutDashboard,
   FolderOpen,
@@ -12,6 +13,8 @@ import {
   UserCircle,
   ChevronDown,
   LogOut,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
@@ -29,6 +32,7 @@ export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuth()
+  const { theme, setTheme } = useTheme()
   const [showMenu, setShowMenu] = useState(false)
 
   function handleLogout() {
@@ -37,19 +41,23 @@ export default function Sidebar() {
     router.push('/login')
   }
 
+  function toggleTheme() {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
+  }
+
   const userInitial = user?.email?.[0]?.toUpperCase() ?? 'U'
 
   return (
-    <aside className="flex flex-col w-60 min-h-screen bg-[#0d0d14] border-r border-white/[0.06] shrink-0">
+    <aside className="flex flex-col w-60 min-h-screen bg-[#0d0d14] dark:bg-[#0d0d14] light:bg-slate-100 border-r border-white/[0.06] dark:border-white/[0.06] shrink-0">
       {/* Logo Section */}
-      <div className="px-6 py-6 border-b border-white/[0.06]">
+      <div className="px-6 py-6 border-b border-white/[0.06] dark:border-white/[0.06] border-gray-200">
         <div className="flex items-center gap-3 mb-1">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-600 font-bold text-white text-base select-none shadow-lg shadow-indigo-600/30">
             O
           </div>
           <div className="flex-1">
-            <div className="font-bold text-white text-sm leading-tight">OptiForge AI</div>
-            <div className="text-xs text-white/40 leading-tight">Design Platform</div>
+            <div className="font-bold text-white dark:text-white text-gray-900 text-sm leading-tight">OptiForge AI</div>
+            <div className="text-xs text-white/40 dark:text-white/40 text-gray-500 leading-tight">Design Platform</div>
           </div>
         </div>
       </div>
@@ -66,13 +74,13 @@ export default function Sidebar() {
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative',
                 active
                   ? 'bg-indigo-600/20 text-indigo-400'
-                  : 'text-white/60 hover:text-white hover:bg-white/5'
+                  : 'text-white/60 dark:text-white/60 text-gray-600 hover:text-white dark:hover:text-white hover:text-gray-900 hover:bg-white/5 dark:hover:bg-white/5 hover:bg-gray-100'
               )}
             >
               {active && (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-600 rounded-r" />
               )}
-              <Icon size={18} className={active ? 'text-indigo-400' : 'text-white/40'} />
+              <Icon size={18} className={active ? 'text-indigo-400' : 'text-white/40 dark:text-white/40 text-gray-400'} />
               <span>{label}</span>
             </Link>
           )
@@ -80,18 +88,35 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom Section */}
-      <div className="border-t border-white/[0.06] px-3 py-4 flex flex-col gap-3">
+      <div className="border-t border-white/[0.06] dark:border-white/[0.06] border-gray-200 px-3 py-4 flex flex-col gap-3">
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full transition-all
+            text-white/60 dark:text-white/60 text-gray-600
+            hover:text-white dark:hover:text-white hover:text-gray-900
+            hover:bg-white/5 dark:hover:bg-white/5 hover:bg-gray-100"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? (
+            <Sun size={18} className="text-amber-400 shrink-0" />
+          ) : (
+            <Moon size={18} className="text-indigo-500 shrink-0" />
+          )}
+          <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+        </button>
+
         {/* User Info */}
         <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors group"
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-white/5 dark:hover:bg-white/5 hover:bg-gray-100 transition-colors group"
           >
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 font-semibold text-white text-xs">
               {userInitial}
             </div>
             <div className="flex-1 min-w-0 text-left">
-              <div className="text-xs text-white/90 font-medium truncate">
+              <div className="text-xs text-white/90 dark:text-white/90 text-gray-800 font-medium truncate">
                 {user?.email?.split('@')[0] ?? 'User'}
               </div>
               <div className="text-xs text-emerald-400 font-medium">Free Plan</div>
@@ -99,7 +124,7 @@ export default function Sidebar() {
             <ChevronDown
               size={16}
               className={cn(
-                'text-white/40 transition-transform',
+                'text-white/40 dark:text-white/40 text-gray-400 transition-transform',
                 showMenu && 'rotate-180'
               )}
             />
@@ -107,11 +132,11 @@ export default function Sidebar() {
 
           {/* Dropdown Menu */}
           {showMenu && (
-            <div className="absolute bottom-full left-3 right-3 mb-2 bg-white/[0.08] backdrop-blur border border-white/[0.1] rounded-lg overflow-hidden shadow-lg z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute bottom-full left-3 right-3 mb-2 bg-white/[0.08] dark:bg-white/[0.08] bg-white backdrop-blur border border-white/[0.1] dark:border-white/[0.1] border-gray-200 rounded-lg overflow-hidden shadow-lg z-50 animate-in fade-in slide-in-from-top-2 duration-150">
               <Link
                 href="/profile"
                 onClick={() => setShowMenu(false)}
-                className="flex items-center gap-2 px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                className="flex items-center gap-2 px-3 py-2.5 text-sm text-white/70 dark:text-white/70 text-gray-700 hover:text-white dark:hover:text-white hover:text-gray-900 hover:bg-white/5 dark:hover:bg-white/5 hover:bg-gray-50 transition-colors"
               >
                 <UserCircle size={16} />
                 Profile
@@ -121,7 +146,7 @@ export default function Sidebar() {
                   setShowMenu(false)
                   handleLogout()
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-white/70 hover:text-red-400 hover:bg-red-500/10 transition-colors border-t border-white/[0.06]"
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-white/70 dark:text-white/70 text-gray-700 hover:text-red-400 hover:bg-red-500/10 transition-colors border-t border-white/[0.06] dark:border-white/[0.06] border-gray-100"
               >
                 <LogOut size={16} />
                 Sign out
@@ -137,13 +162,13 @@ export default function Sidebar() {
             'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative',
             pathname === '/profile'
               ? 'bg-indigo-600/20 text-indigo-400'
-              : 'text-white/60 hover:text-white hover:bg-white/5'
+              : 'text-white/60 dark:text-white/60 text-gray-600 hover:text-white dark:hover:text-white hover:text-gray-900 hover:bg-white/5 dark:hover:bg-white/5 hover:bg-gray-100'
           )}
         >
           {pathname === '/profile' && (
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-600 rounded-r" />
           )}
-          <UserCircle size={18} className={pathname === '/profile' ? 'text-indigo-400' : 'text-white/40'} />
+          <UserCircle size={18} className={pathname === '/profile' ? 'text-indigo-400' : 'text-white/40 dark:text-white/40 text-gray-400'} />
           <span>Profile</span>
         </Link>
       </div>

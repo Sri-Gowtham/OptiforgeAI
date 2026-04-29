@@ -37,17 +37,17 @@ function ScoreBadge({ score }: { score: number }) {
 
 function SkeletonCard() {
   return (
-    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-5 space-y-3 animate-pulse">
+    <div className="bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl p-5 space-y-3 animate-pulse">
       <div className="flex items-center justify-between">
-        <div className="w-8 h-8 rounded bg-white/[0.06]" />
-        <div className="w-16 h-5 rounded-full bg-white/[0.06]" />
+        <div className="w-8 h-8 rounded bg-gray-200 dark:bg-white/[0.06]" />
+        <div className="w-16 h-5 rounded-full bg-gray-200 dark:bg-white/[0.06]" />
       </div>
-      <div className="h-4 bg-white/[0.06] rounded w-2/3" />
-      <div className="h-3 bg-white/[0.06] rounded w-full" />
-      <div className="h-3 bg-white/[0.06] rounded w-3/4" />
-      <div className="pt-2 border-t border-white/[0.06] flex justify-between items-center">
-        <div className="h-3 bg-white/[0.06] rounded w-1/4" />
-        <div className="h-5 bg-white/[0.06] rounded w-16" />
+      <div className="h-4 bg-gray-200 dark:bg-white/[0.06] rounded w-2/3" />
+      <div className="h-3 bg-gray-200 dark:bg-white/[0.06] rounded w-full" />
+      <div className="h-3 bg-gray-200 dark:bg-white/[0.06] rounded w-3/4" />
+      <div className="pt-2 border-t border-gray-100 dark:border-white/[0.06] flex justify-between items-center">
+        <div className="h-3 bg-gray-200 dark:bg-white/[0.06] rounded w-1/4" />
+        <div className="h-5 bg-gray-200 dark:bg-white/[0.06] rounded w-16" />
       </div>
     </div>
   )
@@ -160,7 +160,7 @@ export default function ProjectsPage() {
   ]
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a0f]">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-[#0a0a0f]">
       <Sidebar />
 
       <main className="flex-1 overflow-auto">
@@ -168,7 +168,7 @@ export default function ProjectsPage() {
           {/* Header Row */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
-              <h1 className="text-3xl font-bold text-white">Projects</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Projects</h1>
               <span className="px-3 py-1 rounded-full bg-indigo-600/20 text-indigo-400 text-xs font-semibold border border-indigo-600/30">
                 {filtered.length} {filtered.length === 1 ? 'project' : 'projects'}
               </span>
@@ -190,7 +190,7 @@ export default function ProjectsPage() {
                 placeholder="Search projects…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-white/[0.03] border border-white/[0.1] rounded-xl pl-11 pr-4 py-3 text-white text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 focus:bg-white/[0.05] transition-all"
+                className="w-full bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.1] rounded-xl pl-11 pr-4 py-3 text-gray-900 dark:text-white text-sm placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 dark:focus:bg-white/[0.05] transition-all"
               />
             </div>
           </div>
@@ -205,7 +205,7 @@ export default function ProjectsPage() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     filter === value
                       ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-600/50'
-                      : 'bg-white/[0.03] text-white/60 border border-white/[0.08] hover:border-white/[0.15] hover:text-white/80'
+                      : 'bg-white dark:bg-white/[0.03] text-gray-600 dark:text-white/60 border border-gray-200 dark:border-white/[0.08] hover:border-gray-300 dark:hover:border-white/[0.15] hover:text-gray-900 dark:hover:text-white/80'
                   }`}
                 >
                   {label}
@@ -218,7 +218,7 @@ export default function ProjectsPage() {
               <div className="relative">
                 <button
                   onClick={() => setShowSortMenu(!showSortMenu)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08] text-white/70 hover:text-white/90 text-xs font-medium transition-all"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] text-gray-600 dark:text-white/70 hover:text-gray-900 dark:hover:text-white/90 text-xs font-medium transition-all"
                 >
                   {sort === 'newest' && 'Newest'}
                   {sort === 'oldest' && 'Oldest'}
@@ -307,7 +307,7 @@ export default function ProjectsPage() {
                 <div
                   key={p.id}
                   onClick={() => router.push(`/projects/${p.id}`)}
-                  className="group relative bg-white/[0.03] backdrop-blur border border-white/[0.08] hover:border-indigo-600/40 rounded-xl p-5 transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-600/20 hover:-translate-y-1"
+                  className="group relative bg-white dark:bg-white/[0.03] backdrop-blur border border-gray-200 dark:border-white/[0.08] hover:border-indigo-600/40 rounded-xl p-5 transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-600/20 hover:-translate-y-1"
                 >
                   {/* Type Badge */}
                   <div className="absolute top-4 right-4 px-2 py-1 rounded-full bg-indigo-600/20 text-indigo-300 text-xs font-semibold">
@@ -337,12 +337,12 @@ export default function ProjectsPage() {
                   </div>
 
                   {/* Content */}
-                  <h3 className="text-white font-semibold text-sm mb-1 truncate">{p.name}</h3>
-                  <p className="text-white/50 text-xs mb-4 line-clamp-2">{p.description || 'No description'}</p>
+                  <h3 className="text-gray-900 dark:text-white font-semibold text-sm mb-1 truncate">{p.name}</h3>
+                  <p className="text-gray-500 dark:text-white/50 text-xs mb-4 line-clamp-2">{p.description || 'No description'}</p>
 
                   {/* Divider */}
-                  <div className="border-t border-white/[0.06] pt-3 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-white/40 text-xs">
+                  <div className="border-t border-gray-100 dark:border-white/[0.06] pt-3 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-gray-500 dark:text-white/40 text-xs">
                       <Calendar size={12} />
                       {new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </div>
@@ -357,7 +357,7 @@ export default function ProjectsPage() {
                 <div
                   key={p.id}
                   onClick={() => router.push(`/projects/${p.id}`)}
-                  className="group relative bg-white/[0.03] backdrop-blur border border-white/[0.08] hover:border-indigo-600/40 rounded-xl p-4 transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-600/20"
+                  className="group relative bg-white dark:bg-white/[0.03] backdrop-blur border border-gray-200 dark:border-white/[0.08] hover:border-indigo-600/40 rounded-xl p-4 transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-600/20"
                 >
                   <div className="flex items-center gap-4 justify-between">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -365,17 +365,17 @@ export default function ProjectsPage() {
                         {p.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-white font-semibold text-sm truncate">{p.name}</h3>
-                        <p className="text-white/50 text-xs truncate">{p.description || 'No description'}</p>
+                        <h3 className="text-gray-900 dark:text-white font-semibold text-sm truncate">{p.name}</h3>
+                        <p className="text-gray-500 dark:text-white/50 text-xs truncate">{p.description || 'No description'}</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-4 shrink-0">
                       <div className="text-right">
-                        <div className="text-xs text-white/40 mb-1">
+                        <div className="text-xs text-gray-500 dark:text-white/40 mb-1">
                           {p.type === 'mechanical' ? '⚙️ Mechanical' : '🏛️ Architectural'}
                         </div>
-                        <div className="text-xs text-white/40">
+                        <div className="text-xs text-gray-500 dark:text-white/40">
                           {new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </div>
                       </div>
@@ -410,13 +410,13 @@ export default function ProjectsPage() {
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
           onClick={(e) => e.target === e.currentTarget && setShowModal(false)}
         >
-          <div className="bg-[#13131f] border border-white/[0.1] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-[#13131f] dark:bg-[#13131f] bg-white border border-white/[0.1] dark:border-white/[0.1] border-gray-200 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Gradient accent bar */}
             <div className="h-0.5 bg-gradient-to-r from-indigo-600 to-purple-600" />
 
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white">New Project</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">New Project</h2>
                 <button
                   onClick={() => setShowModal(false)}
                   className="text-white/40 hover:text-white/70 transition-colors"
@@ -429,14 +429,14 @@ export default function ProjectsPage() {
               <form onSubmit={handleCreate} className="space-y-6">
                 {/* Name Input */}
                 <div className="space-y-2">
-                  <label className="text-sm text-white/70 font-medium">Project name</label>
+                  <label className="text-sm text-gray-600 dark:text-white/70 font-medium">Project name</label>
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Gear Assembly v2"
-                    className="w-full bg-white/[0.05] border border-white/[0.1] rounded-lg px-4 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 focus:bg-white/[0.08] transition-all"
+                    className="w-full bg-gray-50 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.1] rounded-lg px-4 py-2.5 text-gray-900 dark:text-white text-sm placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
                   />
                 </div>
 

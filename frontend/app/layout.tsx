@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/auth'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
@@ -20,12 +21,14 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="font-sans antialiased bg-[#0a0a0f] text-white">
-        <AuthProvider>
-          {children}
-          <Toaster theme="dark" richColors position="top-right" />
-        </AuthProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className="font-sans antialiased">
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <AuthProvider>
+            {children}
+            <Toaster richColors position="top-right" />
+          </AuthProvider>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

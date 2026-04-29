@@ -32,7 +32,7 @@ function ScoreBadge({ score }: { score: number }) {
 }
 
 function SkeletonLine({ w = 'w-full', h = 'h-4' }: { w?: string; h?: string }) {
-  return <div className={`${w} ${h} bg-white/[0.06] rounded animate-pulse`} />
+  return <div className={`${w} ${h} bg-gray-200 dark:bg-white/[0.06] rounded animate-pulse`} />
 }
 
 function StatCard({
@@ -51,7 +51,7 @@ function StatCard({
   glowColor: string
 }) {
   return (
-    <div className={`bg-white/[0.03] border rounded-xl p-6 transition-all ${glowColor}`}>
+    <div className={`bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl p-6 transition-all ${glowColor}`}>
       {loading ? (
         <div className="space-y-3">
           <SkeletonLine w="w-1/2" h="h-3" />
@@ -60,10 +60,10 @@ function StatCard({
       ) : (
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-white/40 text-xs font-medium mb-2">{label}</p>
-            <p className="text-4xl font-bold text-white">{value}</p>
+            <p className="text-gray-500 dark:text-white/40 text-xs font-medium mb-2">{label}</p>
+            <p className="text-4xl font-bold text-gray-900 dark:text-white">{value}</p>
           </div>
-          <div className={`p-3 rounded-lg bg-white/[0.04] ${color}`}>
+          <div className={`p-3 rounded-lg bg-gray-100 dark:bg-white/[0.04] ${color}`}>
             <Icon size={24} />
           </div>
         </div>
@@ -75,18 +75,18 @@ function StatCard({
 function ProjectCard({ project }: { project: Project }) {
   const initial = project.name[0]?.toUpperCase() ?? 'P'
   return (
-    <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-5 hover:bg-white/[0.05] transition-all">
+    <div className="bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl p-5 hover:bg-gray-50 dark:hover:bg-white/[0.05] transition-all">
       <div className="flex items-start gap-4 mb-4">
         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white font-semibold text-sm shrink-0">
           {initial}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-white font-semibold text-sm truncate">{project.name}</h3>
-          <p className="text-white/40 text-xs mt-1 truncate">{project.description}</p>
+          <h3 className="text-gray-900 dark:text-white font-semibold text-sm truncate">{project.name}</h3>
+          <p className="text-gray-500 dark:text-white/40 text-xs mt-1 truncate">{project.description}</p>
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-white/40">
+        <span className="text-xs text-gray-500 dark:text-white/40">
           {new Date(project.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
         </span>
         <ScoreBadge score={project.score} />
@@ -141,7 +141,7 @@ export default function DashboardPage() {
   })()
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a0f]">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-[#0a0a0f]">
       <Sidebar />
 
       <main className="flex-1 overflow-auto">
@@ -149,10 +149,10 @@ export default function DashboardPage() {
           {/* Header Row */}
           <div className="flex items-start justify-between mb-10">
             <div>
-              <h1 className="text-4xl font-bold text-white mb-2">
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
                 {greeting}, <span className="text-indigo-400">{firstName}</span> 👋
               </h1>
-              <p className="text-white/40 text-sm">
+              <p className="text-gray-500 dark:text-white/40 text-sm">
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </p>
             </div>
@@ -210,7 +210,7 @@ export default function DashboardPage() {
                     ✨ AI Design Tip of the Day
                   </span>
                 </div>
-                <p className="text-white/70 text-sm leading-relaxed">{aiTips[currentTipIndex]}</p>
+                <p className="text-gray-600 dark:text-white/70 text-sm leading-relaxed">{aiTips[currentTipIndex]}</p>
               </div>
               <button
                 onClick={handleRefreshTip}
@@ -234,13 +234,13 @@ export default function DashboardPage() {
                   <Sparkles size={28} />
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">AI Design Creation</h3>
-              <p className="text-white/60 text-sm leading-relaxed mb-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">AI Design Creation</h3>
+              <p className="text-gray-600 dark:text-white/60 text-sm leading-relaxed mb-4">
                 Describe your idea, Claude AI generates complete specs instantly
               </p>
               <div className="flex items-center gap-2 mb-6">
-                <span className="text-xs px-2.5 py-1 rounded-full bg-white/[0.05] text-white/60">Mechanical</span>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-white/[0.05] text-white/60">Architectural</span>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-white/[0.05] text-gray-600 dark:text-white/60">Mechanical</span>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-white/[0.05] text-gray-600 dark:text-white/60">Architectural</span>
               </div>
               <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm group-hover:gap-3 transition-all">
                 Start Creating <ArrowRight size={16} />
@@ -257,14 +257,14 @@ export default function DashboardPage() {
                   <RefreshCw size={28} />
                 </div>
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">AI Optimizer</h3>
-              <p className="text-white/60 text-sm leading-relaxed mb-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">AI Optimizer</h3>
+              <p className="text-gray-600 dark:text-white/60 text-sm leading-relaxed mb-4">
                 Get structural analysis, material suggestions and cost optimization
               </p>
               <div className="flex items-center gap-2 mb-6">
-                <span className="text-xs px-2.5 py-1 rounded-full bg-white/[0.05] text-white/60">Analysis</span>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-white/[0.05] text-white/60">Suggestions</span>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-white/[0.05] text-white/60">Cost</span>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-white/[0.05] text-gray-600 dark:text-white/60">Analysis</span>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-white/[0.05] text-gray-600 dark:text-white/60">Suggestions</span>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-white/[0.05] text-gray-600 dark:text-white/60">Cost</span>
               </div>
               <div className="flex items-center gap-2 text-purple-400 font-semibold text-sm group-hover:gap-3 transition-all">
                 Optimize Now <ArrowRight size={16} />
@@ -274,14 +274,14 @@ export default function DashboardPage() {
 
           {/* Feature Highlights */}
           <div className="mb-10">
-            <h2 className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-4">
+            <h2 className="text-gray-500 dark:text-white/60 text-xs font-semibold uppercase tracking-widest mb-4">
               Coming Soon Features
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Manual Editor */}
               <Link
                 href="/editor"
-                className="bg-white/[0.03] border border-white/[0.08] hover:border-teal-600/40 rounded-xl p-6 transition-all group"
+                className="bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] hover:border-teal-600/40 rounded-xl p-6 transition-all group"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="p-2.5 rounded-lg bg-teal-600/20 text-teal-400 group-hover:scale-110 transition-transform">
@@ -289,15 +289,15 @@ export default function DashboardPage() {
                   </div>
                   <Check size={18} className="text-emerald-400" />
                 </div>
-                <h3 className="text-white font-semibold text-sm mb-1">Manual Editor</h3>
-                <p className="text-white/40 text-xs mb-4">AutoCAD-replica canvas</p>
+                <h3 className="text-gray-900 dark:text-white font-semibold text-sm mb-1">Manual Editor</h3>
+                <p className="text-gray-500 dark:text-white/40 text-xs mb-4">AutoCAD-replica canvas</p>
                 <div className="text-teal-400 font-semibold text-xs flex items-center gap-1 group-hover:gap-2 transition-all">
                   Try Beta <ArrowRight size={12} />
                 </div>
               </Link>
 
               {/* 3D Preview */}
-              <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6 opacity-60 cursor-not-allowed">
+              <div className="bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl p-6 opacity-60 cursor-not-allowed">
                 <div className="flex items-start justify-between mb-4">
                   <div className="p-2.5 rounded-lg bg-purple-600/20 text-purple-400">
                     <Box size={20} />
@@ -307,12 +307,12 @@ export default function DashboardPage() {
                     <span className="text-amber-400 text-xs font-semibold">Coming Soon</span>
                   </div>
                 </div>
-                <h3 className="text-white font-semibold text-sm mb-1">3D Preview</h3>
-                <p className="text-white/40 text-xs">2D to 3D render</p>
+                <h3 className="text-gray-900 dark:text-white font-semibold text-sm mb-1">3D Preview</h3>
+                <p className="text-gray-500 dark:text-white/40 text-xs">2D to 3D render</p>
               </div>
 
               {/* Collaboration */}
-              <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-6 opacity-60 cursor-not-allowed">
+              <div className="bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl p-6 opacity-60 cursor-not-allowed">
                 <div className="flex items-start justify-between mb-4">
                   <div className="p-2.5 rounded-lg bg-blue-600/20 text-blue-400">
                     <Users size={20} />
@@ -322,8 +322,8 @@ export default function DashboardPage() {
                     <span className="text-amber-400 text-xs font-semibold">Coming Soon</span>
                   </div>
                 </div>
-                <h3 className="text-white font-semibold text-sm mb-1">Collaboration</h3>
-                <p className="text-white/40 text-xs">Team design sharing</p>
+                <h3 className="text-gray-900 dark:text-white font-semibold text-sm mb-1">Collaboration</h3>
+                <p className="text-gray-500 dark:text-white/40 text-xs">Team design sharing</p>
               </div>
             </div>
           </div>
@@ -331,7 +331,7 @@ export default function DashboardPage() {
           {/* Recent Projects */}
           <div>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-white/60 text-xs font-semibold uppercase tracking-widest">
+              <h2 className="text-gray-500 dark:text-white/60 text-xs font-semibold uppercase tracking-widest">
                 Recent Projects
               </h2>
               <Link href="/projects" className="text-indigo-400 hover:text-indigo-300 text-xs font-semibold transition-colors flex items-center gap-1">
@@ -342,7 +342,7 @@ export default function DashboardPage() {
             {fetchLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-5 space-y-3">
+                  <div key={i} className="bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl p-5 space-y-3">
                     <SkeletonLine w="w-1/2" h="h-4" />
                     <SkeletonLine w="w-full" h="h-3" />
                     <SkeletonLine w="w-1/3" h="h-3" />
@@ -350,10 +350,10 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : projects.length === 0 ? (
-              <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-12 text-center">
-                <FolderOpen size={40} className="text-white/20 mx-auto mb-4" />
-                <h3 className="text-white font-semibold mb-2">No projects yet</h3>
-                <p className="text-white/40 text-sm mb-6">Create your first design to get started</p>
+              <div className="bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl p-12 text-center">
+                <FolderOpen size={40} className="text-gray-300 dark:text-white/20 mx-auto mb-4" />
+                <h3 className="text-gray-900 dark:text-white font-semibold mb-2">No projects yet</h3>
+                <p className="text-gray-500 dark:text-white/40 text-sm mb-6">Create your first design to get started</p>
                 <Link
                   href="/create"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-lg transition-colors"
