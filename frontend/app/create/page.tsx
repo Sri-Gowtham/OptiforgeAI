@@ -396,36 +396,29 @@ export default function CreatePage() {
                 </div>
               </div>
 
-              {/* AI-Generated Image Preview */}
+              {/* Engineering Blueprint */}
               {result && (
                 <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-8">
                   <div className="flex items-center justify-between mb-6">
-                    <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">AI-Generated Design Image</label>
-                    <span className="px-2 py-1 rounded-full bg-indigo-600/20 text-indigo-300 text-xs font-semibold">AI Generated</span>
+                    <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">Engineering Blueprint</label>
+                    <span className="px-2 py-1 rounded-full bg-indigo-600/20 text-indigo-300 text-xs font-semibold">SVG · AI Generated</span>
                   </div>
 
-                  {/* Debug log — remove after confirming render */}
-                  {(() => { console.log('FINAL IMAGE URL:', result.imageUrl); return null; })()}
-
-                  {result.imageUrl ? (
+                  {result.svgBlueprint ? (
+                    <div
+                      className="w-full bg-white rounded-xl overflow-hidden shadow-inner"
+                      dangerouslySetInnerHTML={{ __html: result.svgBlueprint }}
+                    />
+                  ) : result.imageUrl ? (
                     <img
                       src={result.imageUrl}
                       alt="design preview"
                       referrerPolicy="no-referrer"
                       className="w-full max-h-[600px] object-contain rounded-xl"
                     />
-                  ) : result.svgPreview ? (
-                    <div
-                      className="w-full bg-[#0f0f1a] p-4 rounded-xl"
-                      dangerouslySetInnerHTML={{ __html: result.svgPreview }}
-                    />
                   ) : (
-                    <div className="text-white/30 text-sm py-16 text-center">No image generated</div>
+                    <div className="text-white/30 text-sm py-16 text-center">No design generated</div>
                   )}
-
-                  {/* Static sanity-check image — confirms <img> renders at all */}
-                  <p className="text-white/30 text-xs mt-4 mb-1">Static test (should always show):</p>
-                  <img src="https://picsum.photos/500/200" alt="static test" className="w-full rounded-lg" />
                 </div>
               )}
 

@@ -15,6 +15,7 @@ export interface DesignResult {
   cost: string
   estimatedCost?: number
   svgPreview: string
+  svgBlueprint?: string
   imageUrl?: string
   specifications: { label: string; value: string }[]
   rawSpecifications?: Record<string, any>
@@ -189,6 +190,7 @@ export const analysisAPI = {
       cost: data.estimatedCost ? `$${Number(data.estimatedCost).toLocaleString()}` : 'N/A',
       estimatedCost: data.estimatedCost,
       svgPreview: data.svgPreview || '',
+      svgBlueprint: data.svgBlueprint || '',
       imageUrl: data.imageUrl || undefined,
       specifications: specRows,
       rawSpecifications: specs,
