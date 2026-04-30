@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
@@ -21,7 +21,7 @@ const stats = [
 
 export default function LoginPage() {
   const router = useRouter()
-  const { user, loading, login } = useAuth()
+  const { login } = useAuth()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -30,9 +30,6 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
-    if (!loading && user) router.replace('/dashboard')
-  }, [user, loading, router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

@@ -22,10 +22,10 @@ function ScoreBadge({ score }: { score: number }) {
     score >= 75
       ? 'bg-green-500/15 text-green-400 border-green-500/20'
       : score >= 50
-      ? 'bg-amber-500/15 text-amber-400 border-amber-500/20'
-      : score >= 0
-      ? 'bg-red-500/15 text-red-400 border-red-500/20'
-      : 'bg-white/5 text-white/50 border-white/10'
+        ? 'bg-amber-500/15 text-amber-400 border-amber-500/20'
+        : score >= 0
+          ? 'bg-red-500/15 text-red-400 border-red-500/20'
+          : 'bg-white/5 text-white/50 border-white/10'
   const label =
     score >= 75 ? `${score}% ✓` : score >= 50 ? `${score}%` : score >= 0 ? `${score}%` : 'Not analyzed'
   return (
@@ -202,11 +202,10 @@ export default function ProjectsPage() {
                 <button
                   key={value}
                   onClick={() => setFilter(value)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    filter === value
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filter === value
                       ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-600/50'
                       : 'bg-white dark:bg-white/[0.03] text-gray-600 dark:text-white/60 border border-gray-200 dark:border-white/[0.08] hover:border-gray-300 dark:hover:border-white/[0.15] hover:text-gray-900 dark:hover:text-white/80'
-                  }`}
+                    }`}
                 >
                   {label}
                 </button>
@@ -239,11 +238,10 @@ export default function ProjectsPage() {
                           setSort(value)
                           setShowSortMenu(false)
                         }}
-                        className={`block w-full text-left px-4 py-2 text-xs font-medium transition-colors ${
-                          sort === value
+                        className={`block w-full text-left px-4 py-2 text-xs font-medium transition-colors ${sort === value
                             ? 'bg-indigo-600/30 text-indigo-300'
                             : 'text-white/70 hover:text-white hover:bg-white/5'
-                        }`}
+                          }`}
                       >
                         {label}
                       </button>
@@ -256,22 +254,20 @@ export default function ProjectsPage() {
               <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.08] rounded-lg p-1">
                 <button
                   onClick={() => setView('grid')}
-                  className={`p-1.5 rounded transition-all ${
-                    view === 'grid'
+                  className={`p-1.5 rounded transition-all ${view === 'grid'
                       ? 'bg-indigo-600/30 text-indigo-400'
                       : 'text-white/50 hover:text-white/70'
-                  }`}
+                    }`}
                   aria-label="Grid view"
                 >
                   <Grid3x3 size={14} />
                 </button>
                 <button
                   onClick={() => setView('list')}
-                  className={`p-1.5 rounded transition-all ${
-                    view === 'list'
+                  className={`p-1.5 rounded transition-all ${view === 'list'
                       ? 'bg-indigo-600/30 text-indigo-400'
                       : 'text-white/50 hover:text-white/70'
-                  }`}
+                    }`}
                   aria-label="List view"
                 >
                   <List size={14} />
@@ -461,11 +457,10 @@ export default function ProjectsPage() {
                         key={id}
                         type="button"
                         onClick={() => setSelectedType(id as 'mechanical' | 'architectural')}
-                        className={`flex flex-col items-center gap-2 px-4 py-3 rounded-lg border transition-all ${
-                          selectedType === id
+                        className={`flex flex-col items-center gap-2 px-4 py-3 rounded-lg border transition-all ${selectedType === id
                             ? 'bg-indigo-600/20 border-indigo-600/50 text-indigo-300'
                             : 'bg-white/[0.03] border-white/[0.08] text-white/60 hover:border-white/[0.15] hover:text-white/80'
-                        }`}
+                          }`}
                       >
                         <Icon size={20} />
                         <span className="text-xs font-semibold">{label}</span>

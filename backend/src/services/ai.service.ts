@@ -7,6 +7,36 @@ interface DesignData {
   holeCount: number; holeDiameter: number; load: number; seed: number;
 }
 
+// ── Unified geometry (single source of truth for SVG + DXF) ──────────────────
+export interface Geometry {
+  width: number; height: number; depth: number;
+  holeDiameter: number;
+  holes: { x: number; y: number; r: number }[];
+  material: string; load: number;
+  scale: string; scaleFactor: number; tolerance: string;
+}
+
+const SCALE_MAP: Record<string,number> = { '1:1':1, '1:2':0.5, '1:5':0.2 };
+
+function buildGeometry(d: DesignData, seed: number): Geometry {
+  const scales  = Object.keys(SCALE_MAP);
+  const scale   = scales[seed % scales.length];
+  const sf      = SCALE_MAP[scale];
+  const cols    = Math.ceil(d.holeCount / 2);
+  const rows    = Math.ceil(d.holeCount / cols);
+  const holes: { x: number; y: number; r: number }[] = [];
+  let n = 0;
+  for (let r = 1; r <= rows && n < d.holeCount; r++)
+    for (let c = 1; c <= cols && n < d.holeCount; c++) {
+      holes.push({ x: d.width * c / (cols+1), y: d.height * r / (rows+1), r: d.holeDiameter/2 });
+      n++;
+    }
+  return { width: d.width, height: d.height, depth: d.depth,
+           holeDiameter: d.holeDiameter, holes,
+           material: d.material, load: d.load,
+           scale, scaleFactor: sf, tolerance: '\u00b10.2 mm' };
+}
+
 function extractDesignData(prompt: string, designType: string, seed: number): DesignData {
   const p = prompt.toLowerCase();
   const m = (re: RegExp) => { const r = p.match(re); return r ? parseInt(r[1]) : null; };
@@ -76,28 +106,28 @@ function viewLabel(x: number, y: number, t: string): string {
 }
 
 // ── Mechanical 3-view blueprint ───────────────────────────────────────────────
-function mechanicalSVG(d: DesignData): string {
+function mechanicalSVG(d: DesignData, geo: Geometry): string {
+  const sf  = geo.scaleFactor;
   const W=1080, H=780;
-  const sc  = Math.min(390/d.width, 230/d.height);
-  const fw  = Math.round(d.width*sc);
-  const fh  = Math.round(d.height*sc);
-  const dsc = Math.min(sc, 95/d.depth);
-  const sd  = Math.round(d.depth*dsc);
-  const hr  = Math.round(d.holeDiameter*sc/2);
+  const sc  = Math.min(390/(d.width*sf), 230/(d.height*sf));
+  const fw  = Math.round(d.width*sf*sc);
+  const fh  = Math.round(d.height*sf*sc);
+  const dsc = Math.min(sc, 95/(d.depth*sf));
+  const sd  = Math.round(d.depth*sf*dsc);
+  const hr  = Math.round(d.holeDiameter*sf*sc/2);
+  const tol = geo.tolerance;
 
   // View origins
   const fox=100, foy=65;
   const sox=fox+fw+85, soy=foy;
   const tox=fox,       toy=foy+fh+85;
 
-  // Hole positions (front face)
-  const cols=Math.ceil(d.holeCount/2), rows=Math.ceil(d.holeCount/cols);
-  const holes: [number,number][] = [];
-  let n=0;
-  for (let r=1;r<=rows&&n<d.holeCount;r++)
-    for (let c=1;c<=cols&&n<d.holeCount;c++) {
-      holes.push([fox+c*fw/(cols+1), foy+r*fh/(rows+1)]); n++;
-    }
+  // Hole positions derived from unified geometry (scaled to SVG coords)
+  const holes = geo.holes.map(h => [
+    fox + (h.x / d.width)  * fw,
+    foy + (h.y / d.height) * fh,
+  ] as [number,number]);
+  const n_unused = holes.length; void n_unused;
 
   // FRONT VIEW
   const front = `
@@ -107,8 +137,8 @@ ${viewLabel(fox, foy-18, 'FRONT VIEW')}
 <line x1="${fox+fw/2}" y1="${foy-18}" x2="${fox+fw/2}" y2="${foy+fh+18}" ${S.center}/>
 ${holes.map(([cx,cy])=>`${cline(cx,cy,hr)}
 <circle cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" r="${hr}" ${S.inner}/>`).join('\n')}
-${dimH(fox, foy+fh, fox+fw, 30, `${d.width} mm`)}
-${dimV(fox, foy, foy+fh, -40, `${d.height} mm`)}
+${dimH(fox, foy+fh, fox+fw, 30, `${d.width} mm ${tol}`)}
+${dimV(fox, foy, foy+fh, -40, `${d.height} mm ${tol}`)}
 <line x1="${holes[0][0]-hr}" y1="${holes[0][1]-hr}" x2="${holes[0][0]-hr-28}" y2="${holes[0][1]-hr-28}" stroke="#1a1a2e" stroke-width="0.8"/>
 <line x1="${holes[0][0]-hr-28}" y1="${holes[0][1]-hr-28}" x2="${holes[0][0]-hr-28+52}" y2="${holes[0][1]-hr-28}" stroke="#1a1a2e" stroke-width="0.8"/>
 <text x="${holes[0][0]-hr-28+55}" y="${holes[0][1]-hr-25}" font-size="10" font-family="monospace" fill="#1a1a2e">⌀${d.holeDiameter} THRU ×${d.holeCount}</text>`;
@@ -123,7 +153,7 @@ ${viewLabel(sox, soy-18, 'SIDE VIEW')}
 ${holes.map(([,cy])=>`
 <line x1="${sox}" y1="${(cy-hr).toFixed(0)}" x2="${sox+sd}" y2="${(cy-hr).toFixed(0)}" ${S.hidden}/>
 <line x1="${sox}" y1="${(cy+hr).toFixed(0)}" x2="${sox+sd}" y2="${(cy+hr).toFixed(0)}" ${S.hidden}/>`).join('')}
-${dimH(sox, soy+fh, sox+sd, 30, `${d.depth} mm`)}`;
+${dimH(sox, soy+fh, sox+sd, 30, `${d.depth} mm ${tol}`)}`;
 
   // TOP VIEW (plan)
   const top = `
@@ -134,7 +164,7 @@ ${viewLabel(tox, toy-18, 'TOP VIEW')}
 <line x1="${tox-12}" y1="${toy+sd/2}" x2="${tox+fw+12}" y2="${toy+sd/2}" ${S.center}/>
 ${holes.map(([cx])=>`${cline(cx,toy+sd/2,hr)}
 <circle cx="${cx.toFixed(0)}" cy="${(toy+sd/2).toFixed(0)}" r="${hr}" ${S.inner}/>`).join('\n')}
-${dimV(tox, toy, toy+sd, -40, `${d.depth} mm`)}`;
+${dimV(tox, toy, toy+sd, -40, `${d.depth} mm ${tol}`)}`;
 
   // TITLE BLOCK
   const tbx=sox, tby=toy, tbw=W-sox-20;
@@ -142,8 +172,9 @@ ${dimV(tox, toy, toy+sd, -40, `${d.depth} mm`)}`;
   const rows2=[
     ['TITLE',    d.title.slice(0,28)],
     ['MATERIAL', d.material.toUpperCase()],
-    ['SCALE',    `1:${(1/sc).toFixed(1)}`],
+    ['SCALE',    geo.scale],
     ['MAX LOAD', `${d.load} kg`],
+    ['TOLERANC', geo.tolerance],
     ['DATE',     now],
     ['DRAWN BY', 'OptiForge AI'],
     ['REV',      'A'],
@@ -277,14 +308,15 @@ ${border}${floorPlan}${side}${topView}${tb}
 
 // ── AIService ─────────────────────────────────────────────────────────────────
 export class AIService {
-  private generateEngineeringSVG(type: 'mechanical'|'architectural', d: DesignData): string {
-    return type === 'architectural' ? architecturalSVG(d) : mechanicalSVG(d);
+  private generateEngineeringSVG(type: 'mechanical'|'architectural', d: DesignData, geo: Geometry): string {
+    return type === 'architectural' ? architecturalSVG(d) : mechanicalSVG(d, geo);
   }
 
   async generateDesign(userPrompt: string, designType: 'mechanical'|'architectural' = 'mechanical'): Promise<any> {
     const seed = Date.now();
     const data  = extractDesignData(userPrompt, designType, seed);
-    const svg   = this.generateEngineeringSVG(designType, data);
+    const geo   = buildGeometry(data, seed);
+    const svg   = this.generateEngineeringSVG(designType, data, geo);
 
     let imageUrl: string|undefined;
     try {
@@ -313,26 +345,15 @@ export class AIService {
       designNotes: `Generated from: "${userPrompt.slice(0,120)}"`,
       svgBlueprint: svg,
       imageUrl,
-      // ── scale / units (Part 1 addition) ──
-      scale: '1:1',
-      units: 'mm',
-      // ── raw geometry for DXF export (Part 2 addition) ──
-      width:    data.width,
-      height:   data.height,
-      depth:    data.depth,
-      material: data.material,
-      holes: (() => {
-        const cols = Math.ceil(data.holeCount / 2);
-        const rows = Math.ceil(data.holeCount / cols);
-        const out: {x:number,y:number,r:number}[] = [];
-        let n = 0;
-        for (let r = 1; r <= rows && n < data.holeCount; r++)
-          for (let c = 1; c <= cols && n < data.holeCount; c++) {
-            out.push({ x: data.width * c / (cols+1), y: data.height * r / (rows+1), r: data.holeDiameter/2 });
-            n++;
-          }
-        return out;
-      })(),
+      // ── unified geometry + scale (single source of truth) ──
+      scale:    geo.scale,
+      units:    'mm',
+      tolerance: geo.tolerance,
+      width:    geo.width,
+      height:   geo.height,
+      depth:    geo.depth,
+      material: geo.material,
+      holes:    geo.holes,
     };
   }
 

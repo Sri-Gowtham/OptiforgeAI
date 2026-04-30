@@ -32,11 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Clear any stale session so the app always starts at /login
     try {
-      const session = localStorage.getItem('optiforge_session')
-      if (session) {
-        setUser(JSON.parse(session))
-      }
+      localStorage.removeItem('optiforge_session')
     } catch {
       // ignore
     } finally {

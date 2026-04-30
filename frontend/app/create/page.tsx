@@ -391,6 +391,18 @@ export default function CreatePage() {
                     <RefreshCw size={16} /> Generate New
                   </button>
                   <button className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.03] hover:bg-white/[0.06] text-white/60 font-medium text-sm rounded-lg transition-all"
+                    onClick={() => {
+                      if (!result?.svgBlueprint) return
+                      const blob = new Blob([result.svgBlueprint], { type: 'image/svg+xml' })
+                      const url  = URL.createObjectURL(blob)
+                      const a    = document.createElement('a')
+                      a.href = url; a.download = 'design.svg'; a.click()
+                      URL.revokeObjectURL(url)
+                    }}
+                  >
+                    <Download size={16} /> Download SVG
+                  </button>
+                  <button className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.03] hover:bg-white/[0.06] text-white/60 font-medium text-sm rounded-lg transition-all"
                     onClick={async () => {
                       try {
                         const res = await fetch('http://localhost:5000/api/export/dxf', {
@@ -418,8 +430,8 @@ export default function CreatePage() {
               {result && (
                 <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-8">
                   <div className="flex items-center justify-between mb-6">
-                    <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">Engineering Blueprint</label>
-                    <span className="px-2 py-1 rounded-full bg-indigo-600/20 text-indigo-300 text-xs font-semibold">SVG · AI Generated</span>
+                    <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">Engineering Blueprint (Scaled Drawing)</label>
+                    <span className="px-2 py-1 rounded-full bg-indigo-600/20 text-indigo-300 text-xs font-semibold">SVG · Scale {result.scale || '1:1'}</span>
                   </div>
 
                   {result.svgBlueprint ? (

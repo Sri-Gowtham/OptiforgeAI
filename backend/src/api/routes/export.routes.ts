@@ -36,6 +36,7 @@ router.post('/dxf', (req: Request, res: Response) => {
       height:   Number(body.height) || parseFloat(String(body.specifications?.height || '200')),
       depth:    Number(body.depth)  || parseFloat(String(body.specifications?.depth  || '0')) || undefined,
       holes,
+      geometry: Array.isArray(body.geometry) ? body.geometry : undefined,
       title:    String(body.name || body.title || 'OptiForge Design'),
       material: String(body.material || body.specifications?.material || 'Steel'),
     };
