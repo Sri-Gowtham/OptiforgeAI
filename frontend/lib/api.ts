@@ -278,3 +278,27 @@ export const dashboardAPI = {
     }
   },
 }
+
+export const designAPI = {
+  async save(name: string, elements: any[], constraints: any[]): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/design/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, data: { elements, constraints } }),
+    });
+    if (!res.ok) throw new Error('Failed to save design');
+    return res.json();
+  },
+
+  async getById(id: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/api/design/${id}`);
+    if (!res.ok) throw new Error('Failed to load design');
+    return res.json();
+  },
+
+  async getAll(): Promise<any[]> {
+    const res = await fetch(`${API_BASE}/api/design`);
+    if (!res.ok) throw new Error('Failed to fetch designs');
+    return res.json();
+  }
+};

@@ -48,6 +48,14 @@ export interface DimensionElement extends BaseElement {
   orientation: 'aligned' | 'horizontal' | 'vertical'
 }
 
+export interface Constraint {
+  id: string
+  type: 'parallel' | 'equal' | 'fixed' | 'horizontal' | 'vertical'
+  referenceId: string   // master element
+  targetIds: string[]    // dependent elements
+  value?: number
+}
+
 export type DrawElement = LineElement | RectElement | CircleElement | ArcElement | DimensionElement
 
 export interface Layer {
@@ -68,6 +76,7 @@ export interface EditorState {
   snapOn: boolean
   layers: Layer[]
   activeLayerId: string
+  constraints: Constraint[]
   history: DrawElement[][]
   historyIndex: number
 }
@@ -90,6 +99,15 @@ type Action =
   | { type: 'SET_ACTIVE_LAYER'; id: string }
   | { type: 'UNDO' }
   | { type: 'REDO' }
+  | { type: 'RESET_VIEW' }
+  | { type: 'ADD_CONSTRAINT'; constraint: Constraint }
+  | { type: 'LOAD_AI_DESIGN'; elements: DrawElement[]; constraints: Constraint[] }
+
+declare global {
+  interface Window {
+    DEBUG_CONSTRAINTS: boolean
+  }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -97,6 +115,102 @@ function pushHistory(state: EditorState): EditorState {
   const newHistory = state.history.slice(0, state.historyIndex + 1)
   newHistory.push(state.elements)
   return { ...state, history: newHistory, historyIndex: newHistory.length - 1 }
+}
+
+function getDependencyGraph(constraints: Constraint[]) {
+  const adj: Record<string, string[]> = {}
+  constraints.forEach(c => {
+    if (!adj[c.referenceId]) adj[c.referenceId] = []
+    c.targetIds.forEach(tid => { if (tid !== c.referenceId) adj[c.referenceId].push(tid) })
+  })
+  return adj
+}
+
+function topologicalSort(constraints: Constraint[]) {
+  const adj = getDependencyGraph(constraints)
+  const visited = new Set<string>(), result: string[] = [], temp = new Set<string>()
+  const visit = (node: string) => {
+    if (temp.has(node)) throw new Error("Cycle detected")
+    if (visited.has(node)) return
+    temp.add(node)
+    ;(adj[node] || []).forEach(visit)
+    temp.delete(node)
+    visited.add(node)
+    result.push(node)
+  }
+  const nodes = new Set([...Object.keys(adj), ...Object.values(adj).flat()])
+  nodes.forEach(node => { if (!visited.has(node)) visit(node) })
+  return result.reverse()
+}
+
+function createsCycle(newC: Constraint, existing: Constraint[]) {
+  try { topologicalSort([...existing, newC]); return false } catch { return true }
+}
+
+function applyConstraints(elements: DrawElement[], constraints: Constraint[], changedId?: string): DrawElement[] {
+  const prevState = [...elements]
+  try {
+    const sortedNodes = topologicalSort(constraints)
+    const sorted = [...constraints].sort((a, b) => sortedNodes.indexOf(a.referenceId) - sortedNodes.indexOf(b.referenceId))
+    
+    if (window.DEBUG_CONSTRAINTS) {
+      console.log("Graph:", getDependencyGraph(constraints))
+      console.log("Solve Order:", sortedNodes)
+    }
+
+    let next = [...elements]
+    const PRIORITY: Record<string, number> = { fixed: 4, horizontal: 3, vertical: 3, equal: 2, parallel: 1 }
+    
+    for (let i = 0; i < 5; i++) {
+      sorted.forEach(c => {
+        if (c.type === 'horizontal') {
+          next = next.map(el => (c.targetIds.includes(el.id) && el.type === 'line') ? { ...el, y2: el.y1 } : el)
+        } else if (c.type === 'vertical') {
+          next = next.map(el => (c.targetIds.includes(el.id) && el.type === 'line') ? { ...el, x2: el.x1 } : el)
+        } else if (c.type === 'fixed') {
+          next = next.map(el => {
+            if (el.id === c.referenceId) return { ...el, locked: true }
+            if (c.targetIds.includes(el.id) && el.type === 'line' && c.value) {
+              const dx = el.x2 - el.x1, dy = el.y2 - el.y1, len = Math.hypot(dx, dy)
+              if (len === 0) return el
+              return { ...el, x2: el.x1 + (dx / len) * c.value, y2: el.y1 + (dy / len) * c.value }
+            }
+            return el
+          })
+        } else if (c.type === 'equal') {
+          const ref = next.find(el => el.id === c.referenceId)
+          if (ref?.type === 'line') {
+            const rLen = Math.hypot(ref.x2 - ref.x1, ref.y2 - ref.y1)
+            next = next.map(el => {
+              if (c.targetIds.includes(el.id) && el.type === 'line') {
+                const dx = el.x2 - el.x1, dy = el.y2 - el.y1, len = Math.hypot(dx, dy)
+                if (len === 0) return el
+                return { ...el, x2: el.x1 + (dx / len) * rLen, y2: el.y1 + (dy / len) * rLen }
+              }
+              return el
+            })
+          }
+        } else if (c.type === 'parallel') {
+          const ref = next.find(el => el.id === c.referenceId)
+          if (ref?.type === 'line') {
+            const rdx = ref.x2 - ref.x1, rdy = ref.y2 - ref.y1, rLen = Math.hypot(rdx, rdy)
+            if (rLen === 0) return
+            next = next.map(el => {
+              if (c.targetIds.includes(el.id) && el.type === 'line') {
+                const len = Math.hypot(el.x2 - el.x1, el.y2 - el.y1)
+                return { ...el, x2: el.x1 + (rdx / rLen) * len, y2: el.y1 + (rdy / rLen) * len }
+              }
+              return el
+            })
+          }
+        }
+      })
+    }
+    return next
+  } catch (e) {
+    if (window.DEBUG_CONSTRAINTS) console.warn("Solver unstable, reverting:", e)
+    return prevState
+  }
 }
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -113,11 +227,12 @@ function reducer(state: EditorState, action: Action): EditorState {
 
     case 'UPDATE_ELEMENT': {
       const next = pushHistory(state)
+      const updated = next.elements.map((el) =>
+        el.id === action.id ? ({ ...el, ...action.patch } as DrawElement) : el
+      )
       return {
         ...next,
-        elements: next.elements.map((el) =>
-          el.id === action.id ? ({ ...el, ...action.patch } as DrawElement) : el
-        ),
+        elements: applyConstraints(updated, next.constraints)
       }
     }
 
@@ -182,6 +297,66 @@ function reducer(state: EditorState, action: Action): EditorState {
       return { ...state, elements: state.history[newIndex], historyIndex: newIndex, selectedIds: [] }
     }
 
+    case 'RESET_VIEW':
+      return { ...state, zoom: 1, offset: { x: 0, y: 0 } }
+
+    case 'ADD_CONSTRAINT': {
+      if (createsCycle(action.constraint, state.constraints)) {
+        console.warn("Constraint rejected: Creating circular dependency")
+        return state
+      }
+
+      // Conflict detection
+      const affectedIds = [action.constraint.referenceId, ...action.constraint.targetIds]
+      const existing = state.constraints.filter(c => [c.referenceId, ...c.targetIds].some(id => affectedIds.includes(id)))
+      const hasHVConflict = (action.constraint.type === 'horizontal' && existing.some(e => e.type === 'vertical')) ||
+                            (action.constraint.type === 'vertical' && existing.some(e => e.type === 'horizontal'))
+      if (hasHVConflict) {
+        console.warn("Constraint conflict: Cannot apply Horizontal and Vertical to same element")
+        return state
+      }
+
+      const next = pushHistory(state)
+      return {
+        ...next,
+        constraints: [...next.constraints, action.constraint],
+        elements: applyConstraints(next.elements, [...next.constraints, action.constraint])
+      }
+    }
+
+    case 'LOAD_AI_DESIGN': {
+      // Auto center
+      if (action.elements.length === 0) return { ...state, elements: [], constraints: [] }
+      
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+      action.elements.forEach(el => {
+        if (el.type === 'rect') {
+          minX = Math.min(minX, el.x); minY = Math.min(minY, el.y)
+          maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height)
+        } else if (el.type === 'circle') {
+          minX = Math.min(minX, el.cx - el.r); minY = Math.min(minY, el.cy - el.r)
+          maxX = Math.max(maxX, el.cx + el.r); maxY = Math.max(maxY, el.cy + el.r)
+        } else if (el.type === 'line') {
+          minX = Math.min(minX, el.x1, el.x2); minY = Math.min(minY, el.y1, el.y2)
+          maxX = Math.max(maxX, el.x1, el.x2); maxY = Math.max(maxY, el.y1, el.y2)
+        }
+      })
+      
+      const centerX = (minX + maxX) / 2
+      const centerY = (minY + maxY) / 2
+      const offset = { x: -centerX, y: -centerY }
+
+      return {
+        ...state,
+        elements: action.elements,
+        constraints: action.constraints,
+        zoom: 1,
+        offset,
+        history: [action.elements],
+        historyIndex: 0
+      }
+    }
+
     default:
       return state
   }
@@ -201,6 +376,7 @@ const initialState: EditorState = {
   snapOn: true,
   layers: [DEFAULT_LAYER],
   activeLayerId: 'layer-1',
+  constraints: [],
   history: [[]],
   historyIndex: 0,
 }
@@ -227,13 +403,17 @@ export function useEditorStore() {
   const setActiveLayer = useCallback((id: string) => dispatch({ type: 'SET_ACTIVE_LAYER', id }), [])
   const undo = useCallback(() => dispatch({ type: 'UNDO' }), [])
   const redo = useCallback(() => dispatch({ type: 'REDO' }), [])
+  const resetView = useCallback(() => dispatch({ type: 'RESET_VIEW' }), [])
+  const addConstraint = useCallback((constraint: Constraint) => dispatch({ type: 'ADD_CONSTRAINT', constraint }), [])
+  const loadAIDesign = useCallback((elements: DrawElement[], constraints: Constraint[]) => 
+    dispatch({ type: 'LOAD_AI_DESIGN', elements, constraints }), [])
 
   const canUndo = state.historyIndex > 0
   const canRedo = state.historyIndex < state.history.length - 1
 
   return { state, setTool, addElement, updateElement, deleteSelected, setSelected, toggleSelect,
     setZoom, setOffset, toggleGrid, toggleSnap, addLayer, updateLayer, setActiveLayer,
-    undo, redo, canUndo, canRedo }
+    undo, redo, resetView, addConstraint, loadAIDesign, canUndo, canRedo }
 }
 
 // ─── Geometry selector (unified format for SVG + DXF export) ─────────────────

@@ -1,6 +1,6 @@
 'use client'
 
-import { MousePointer, Hand, Minus, Square, Circle, GitMerge, RotateCcw, RotateCw, Hash, Magnet, Trash2, Download, Ruler } from 'lucide-react'
+import { MousePointer, Hand, Minus, Square, Circle, GitMerge, RotateCcw, RotateCw, Hash, Magnet, Trash2, Download, Ruler, Maximize, AlignJustify, Equal, SeparatorHorizontal, SeparatorVertical, Lock, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Tool } from './useEditorStore'
 import type { useEditorStore } from './useEditorStore'
@@ -55,12 +55,32 @@ export default function EditorToolbar({
   onExportSVG: () => void
   onExportDXF: () => void
   onAnalyze: () => void
+  onSave: () => void
 }) {
-  const { state, setTool, toggleGrid, toggleSnap, undo, redo, canUndo, canRedo, deleteSelected, setZoom } = store
+  const { state, setTool, toggleGrid, toggleSnap, undo, redo, resetView, addConstraint, canUndo, canRedo, deleteSelected, setZoom } = store
   const { tool, gridOn, snapOn, zoom, selectedIds } = state
 
   // Keyboard shortcuts
   // (handled in parent to avoid duplicate listeners)
+  const addC = (type: 'parallel' | 'equal' | 'fixed' | 'horizontal' | 'vertical') => {
+    if (selectedIds.length === 0) return
+    const referenceId = selectedIds[0]
+    const otherIds = selectedIds.slice(1)
+    
+    let value = undefined
+    if (type === 'fixed') {
+      const el = state.elements.find(e => e.id === referenceId)
+      if (el?.type === 'line') value = Math.hypot(el.x2 - el.x1, el.y2 - el.y1)
+    }
+
+    addConstraint({
+      id: `c-${Date.now()}`,
+      type,
+      referenceId,
+      targetIds: otherIds.length > 0 ? otherIds : [referenceId],
+      value
+    })
+  }
 
   return (
     <div className="h-12 bg-[#0d0d14] border-b border-white/[0.06] flex items-center px-4 gap-2 shrink-0">
@@ -107,6 +127,17 @@ export default function EditorToolbar({
 
         <Divider />
 
+        {/* Constraints */}
+        <div className="flex items-center gap-0.5">
+          <ToolBtn icon={SeparatorHorizontal} label="Horizontal" onClick={() => addC('horizontal')} disabled={selectedIds.length === 0} />
+          <ToolBtn icon={SeparatorVertical}   label="Vertical"   onClick={() => addC('vertical')}   disabled={selectedIds.length === 0} />
+          <ToolBtn icon={AlignJustify}        label="Parallel"   onClick={() => addC('parallel')}   disabled={selectedIds.length < 2} />
+          <ToolBtn icon={Equal}               label="Equal"      onClick={() => addC('equal')}      disabled={selectedIds.length < 2} />
+          <ToolBtn icon={Lock}                label="Fix Length" onClick={() => addC('fixed')}      disabled={selectedIds.length === 0} />
+        </div>
+
+        <Divider />
+
         {/* Zoom */}
         <div className="flex items-center gap-1">
           <button
@@ -118,6 +149,7 @@ export default function EditorToolbar({
             onClick={() => setZoom(zoom * 1.2)}
             className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 rounded text-base"
           >+</button>
+          <ToolBtn icon={Maximize} label="Reset View" onClick={resetView} />
         </div>
       </div>
 
@@ -134,6 +166,12 @@ export default function EditorToolbar({
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors text-xs font-medium"
         >
           <Download size={13} /> Export DXF
+        </button>
+        <button
+          onClick={onSave}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/[0.08] hover:bg-white/[0.15] text-white text-xs font-semibold transition-all mr-1"
+        >
+          <Save size={13} /> Save
         </button>
         <button
           onClick={onAnalyze}

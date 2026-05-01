@@ -385,6 +385,16 @@ export default function CreatePage() {
                     <Save size={16} /> Save to Project
                   </button>
                   <button
+                    onClick={() => {
+                      if (!result?.cadGeometry) return
+                      localStorage.setItem('optiforge_ai_cad_transfer', JSON.stringify(result.cadGeometry))
+                      router.push('/editor')
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600/20 border border-indigo-600/30 hover:bg-indigo-600/30 text-indigo-300 font-semibold text-sm rounded-lg transition-all"
+                  >
+                    <Edit3 size={16} /> Open in CAD Editor
+                  </button>
+                  <button
                     onClick={() => { setResult(null); setPrompt('') }}
                     className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.05] hover:bg-white/[0.08] text-white/70 font-medium text-sm rounded-lg transition-all"
                   >

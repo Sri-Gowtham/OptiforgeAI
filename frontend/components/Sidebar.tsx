@@ -15,6 +15,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  FileCode,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
@@ -23,6 +24,7 @@ import { cn } from '@/lib/utils'
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/projects', label: 'Projects', icon: FolderOpen },
+  { href: '/designs', label: 'Saved Designs', icon: FileCode },
   { href: '/create', label: 'AI Create', icon: Sparkles },
   { href: '/optimizer', label: 'Optimizer', icon: RefreshCw },
   { href: '/editor', label: 'Manual Design', icon: PenTool },

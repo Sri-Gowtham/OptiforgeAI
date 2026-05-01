@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback, useEffect } from 'react'
+import { AlertCircle } from 'lucide-react'
 import { useEditorStore, DrawElement, DimensionElement } from './useEditorStore'
 
 // ─── Snap helper ─────────────────────────────────────────────────────────────
@@ -45,16 +46,38 @@ function getBBox(el: DrawElement | DimensionElement) {
 }
 
 // ─── Hit test ────────────────────────────────────────────────────────────────
-function hitTest(el: DrawElement, px: number, py: number) {
-  const bb = getBBox(el)
-  return px >= bb.x && px <= bb.x + bb.w && py >= bb.y && py <= bb.y + bb.h
+function distanceToLine(px: number, py: number, x1: number, y1: number, x2: number, y2: number) {
+  const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2
+  if (l2 === 0) return Math.hypot(px - x1, py - y1)
+  let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2
+  t = Math.max(0, Math.min(1, t))
+  return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)))
+}
+
+function hitTest(el: DrawElement, px: number, py: number, zoom: number) {
+  const tol = 6 / zoom
+  if (el.type === 'line') return distanceToLine(px, py, el.x1, el.y1, el.x2, el.y2) < tol
+  if (el.type === 'rect') {
+    const { x, y, width, height } = el
+    const d1 = distanceToLine(px, py, x, y, x + width, y)
+    const d2 = distanceToLine(px, py, x + width, y, x + width, y + height)
+    const d3 = distanceToLine(px, py, x + width, y + height, x, y + height)
+    const d4 = distanceToLine(px, py, x, y + height, x, y)
+    return Math.min(d1, d2, d3, d4) < tol
+  }
+  if (el.type === 'circle') return Math.abs(Math.hypot(px - el.cx, py - el.cy) - el.r) < tol
+  if (el.type === 'arc') return Math.abs(Math.hypot(px - el.cx, py - el.cy) - el.r) < tol
+  if (el.type === 'dimension') return distanceToLine(px, py, el.x1, el.y1, el.x2, el.y2) < tol
+  return false
 }
 
 // ─── Element renderer ─────────────────────────────────────────────────────────
-function RenderElement({ el, selected }: { el: DrawElement; selected: boolean }) {
+function RenderElement({ el, selected, zoom }: { el: DrawElement; selected: boolean; zoom: number }) {
+  const scale = 1 / zoom
+  const sw = (el.strokeWidth || 1.5) * scale
   const selStyle = selected
-    ? { stroke: '#4f8ef7', strokeDasharray: '5,2', strokeWidth: el.strokeWidth + 0.5 }
-    : { stroke: el.stroke, strokeDasharray: el.strokeDasharray, strokeWidth: el.strokeWidth }
+    ? { stroke: '#4f8ef7', strokeDasharray: `${5*scale},${2*scale}`, strokeWidth: sw + 1 * scale }
+    : { stroke: el.stroke, strokeDasharray: el.strokeDasharray, strokeWidth: sw }
 
   const fill = el.fill || 'none'
 
@@ -96,13 +119,13 @@ function RenderElement({ el, selected }: { el: DrawElement; selected: boolean })
         <line x1={el.x1} y1={el.y1} x2={x1p} y2={y1p} stroke="#facc15" strokeWidth={0.5} strokeDasharray="2,1" />
         <line x1={el.x2} y1={el.y2} x2={x2p} y2={y2p} stroke="#facc15" strokeWidth={0.5} strokeDasharray="2,1" />
         <line x1={x1p} y1={y1p} x2={x2p} y2={y2p} stroke="#facc15" strokeWidth={1} />
-        <path d="M 0 0 L 8 -2.5 L 8 2.5 Z" fill="#facc15" transform={`translate(${x1p},${y1p}) rotate(${angle})`} />
-        <path d="M 0 0 L -8 -2.5 L -8 2.5 Z" fill="#facc15" transform={`translate(${x2p},${y2p}) rotate(${angle})`} />
+        <path d={`M 0 0 L ${8*scale} ${-2.5*scale} L ${8*scale} ${2.5*scale} Z`} fill="#facc15" transform={`translate(${x1p},${y1p}) rotate(${angle})`} />
+        <path d={`M 0 0 L ${-8*scale} ${-2.5*scale} L ${-8*scale} ${2.5*scale} Z`} fill="#facc15" transform={`translate(${x2p},${y2p}) rotate(${angle})`} />
         <text
           x={midX}
-          y={midY - 6}
+          y={midY - 6 * scale}
           fill="#facc15"
-          fontSize={10}
+          fontSize={10 * scale}
           textAnchor="middle"
           transform={`rotate(${textAngle}, ${midX}, ${midY})`}
           className="font-mono select-none pointer-events-none"
@@ -116,11 +139,11 @@ function RenderElement({ el, selected }: { el: DrawElement; selected: boolean })
 }
 
 // ─── Selection handles ────────────────────────────────────────────────────────
-function SelectionHandles({ el, onResizeStart }: { el: DrawElement; onResizeStart: (handle: string, el: DrawElement, e: React.MouseEvent) => void }) {
+function SelectionHandles({ el, zoom, onResizeStart }: { el: DrawElement; zoom: number; onResizeStart: (handle: string, el: DrawElement, e: React.MouseEvent) => void }) {
   const bb = getBBox(el)
   if (!bb) return null
-
-  const HANDLE_SIZE = 6
+  const scale = 1 / zoom
+  const HANDLE_SIZE = 6 * scale
   const handles = [
     { key: 'nw', x: bb.x, y: bb.y },
     { key: 'n',  x: bb.x + bb.w / 2, y: bb.y },
@@ -164,6 +187,7 @@ export default function Canvas({ store }: { store: ReturnType<typeof useEditorSt
   const [cursor, setCursor] = useState({ x: 0, y: 0 })
   // Dimension tool: first point already placed?
   const [dimPt1, setDimPt1] = useState<{ x: number; y: number } | null>(null)
+  const [activeSnap, setActiveSnap] = useState<{ x: number; y: number } | null>(null)
 
   // Pan state
   const isPanning = useRef(false)
@@ -191,8 +215,44 @@ export default function Canvas({ store }: { store: ReturnType<typeof useEditorSt
       x: (e.clientX - rect.left - offset.x) / zoom,
       y: (e.clientY - rect.top - offset.y) / zoom,
     }
-    return { x: snap(raw.x, snapOn), y: snap(raw.y, snapOn) }
-  }, [offset, zoom, snapOn])
+    
+    let pt = { x: raw.x, y: raw.y }
+    
+    // Object Snap
+    const SNAP_DIST = 10 / zoom
+    let bestSnap = null
+    let minDist = SNAP_DIST
+
+    elements.forEach(el => {
+      const pts: { x: number, y: number }[] = []
+      if (el.type === 'line' || el.type === 'dimension') {
+        pts.push({ x: el.x1, y: el.y1 }, { x: el.x2, y: el.y2 }, { x: (el.x1 + el.x2) / 2, y: (el.y1 + el.y2) / 2 })
+      } else if (el.type === 'rect') {
+        pts.push({ x: el.x, y: el.y }, { x: el.x + el.width, y: el.y }, { x: el.x + el.width, y: el.y + el.height }, { x: el.x, y: el.y + el.height })
+        pts.push({ x: el.x + el.width/2, y: el.y }, { x: el.x + el.width/2, y: el.y + el.height })
+      } else if (el.type === 'circle' || el.type === 'arc') {
+        pts.push({ x: el.cx, y: el.cy })
+      }
+      
+      pts.forEach(p => {
+        const d = Math.hypot(p.x - raw.x, p.y - raw.y)
+        if (d < minDist) {
+          minDist = d
+          bestSnap = p
+        }
+      })
+    })
+
+    if (bestSnap) {
+      pt = bestSnap
+      setActiveSnap(bestSnap)
+    } else {
+      setActiveSnap(null)
+      pt = { x: snap(raw.x, snapOn), y: snap(raw.y, snapOn) }
+    }
+
+    return pt
+  }, [offset, zoom, snapOn, elements])
 
   const getClientPoint = useCallback((e: React.MouseEvent) => {
     return { x: e.clientX, y: e.clientY }
@@ -269,7 +329,7 @@ export default function Canvas({ store }: { store: ReturnType<typeof useEditorSt
       const hit = [...elements].reverse().find((el) => {
         const layer = layers.find((l) => l.id === el.layerId)
         if (!layer?.visible || el.locked) return false
-        return hitTest(el, pt.x, pt.y)
+        return hitTest(el, pt.x, pt.y, zoom)
       })
 
       if (hit) {
@@ -335,8 +395,8 @@ export default function Canvas({ store }: { store: ReturnType<typeof useEditorSt
     // Pan
     if (isPanning.current) {
       const newOffset = {
-        x: e.clientX - panStart.current.x,
-        y: e.clientY - panStart.current.y,
+        x: Math.max(-2000, Math.min(2000, e.clientX - panStart.current.x)),
+        y: Math.max(-2000, Math.min(2000, e.clientY - panStart.current.y)),
       }
       panOffset.current = newOffset
       setOffset(newOffset)
@@ -446,6 +506,7 @@ export default function Canvas({ store }: { store: ReturnType<typeof useEditorSt
     : 'crosshair'
 
   const visibleLayers = new Set(layers.filter((l) => l.visible).map((l) => l.id))
+  const { constraints } = state
 
   const GRID = 10
   const MAJOR = 100
@@ -489,9 +550,66 @@ export default function Canvas({ store }: { store: ReturnType<typeof useEditorSt
             const selected = selectedIds.includes(el.id)
             return (
               <g key={el.id}>
-                <RenderElement el={el} selected={selected} />
+                <RenderElement el={el} selected={selected} zoom={zoom} />
                 {selected && (
-                  <SelectionHandles el={el} onResizeStart={handleResizeStart} />
+                  <SelectionHandles el={el} zoom={zoom} onResizeStart={handleResizeStart} />
+                )}
+              </g>
+            )
+          })}
+
+          {/* Constraints Indicators */}
+          {constraints.map(c => {
+            const refEl = elements.find(e => e.id === c.referenceId)
+            if (!refEl || refEl.type !== 'line') return null
+            const rMid = { x: (refEl.x1 + refEl.x2) / 2, y: (refEl.y1 + refEl.y2) / 2 }
+            const scale = 1 / zoom
+            
+            const hasConflict = constraints.some(other => 
+              other.id !== c.id && 
+              [other.referenceId, ...other.targetIds].some(id => [c.referenceId, ...c.targetIds].includes(id)) &&
+              ((c.type === 'horizontal' && other.type === 'vertical') || (c.type === 'vertical' && other.type === 'horizontal'))
+            )
+            
+            const label = c.type === 'horizontal' ? 'H' : c.type === 'vertical' ? 'V' : c.type === 'parallel' ? '//' : c.type === 'equal' ? '=' : 'F'
+            const color = hasConflict ? '#ef4444' : '#818cf8'
+
+            return (
+              <g key={c.id}>
+                <text
+                  x={rMid.x}
+                  y={rMid.y + 10 * scale}
+                  fill={color}
+                  fontSize={9 * scale}
+                  fontWeight="black"
+                  textAnchor="middle"
+                  className="pointer-events-none select-none font-mono"
+                >
+                  {label}
+                  {c.targetIds.length > 1 && <tspan fontSize={6*scale} dy={-4*scale}> REF</tspan>}
+                </text>
+                
+                {/* Directional lines to targets */}
+                {c.targetIds.filter(tid => tid !== c.referenceId).map(tid => {
+                  const tEl = elements.find(e => e.id === tid)
+                  if (!tEl || tEl.type !== 'line') return null
+                  const tMid = { x: (tEl.x1 + tEl.x2) / 2, y: (tEl.y1 + tEl.y2) / 2 }
+                  return (
+                    <line 
+                      key={tid} 
+                      x1={rMid.x} y1={rMid.y} x2={tMid.x} y2={tMid.y} 
+                      stroke={color} strokeWidth={0.5 * scale} strokeDasharray={`${2*scale},${2*scale}`} opacity={0.3}
+                      pointerEvents="none"
+                    />
+                  )
+                })}
+
+                {hasConflict && (
+                  <path 
+                    d={`M ${rMid.x + 6*scale} ${rMid.y + 4*scale} L ${rMid.x + 12*scale} ${rMid.y + 10*scale} M ${rMid.x + 12*scale} ${rMid.y + 4*scale} L ${rMid.x + 6*scale} ${rMid.y + 10*scale}`}
+                    stroke="#ef4444"
+                    strokeWidth={1.5*scale}
+                  />
                 )}
               </g>
             )
@@ -500,7 +618,22 @@ export default function Canvas({ store }: { store: ReturnType<typeof useEditorSt
           {/* Drawing preview */}
           {preview && (
             <g opacity={0.7} pointerEvents="none">
-              <RenderElement el={preview} selected={false} />
+              <RenderElement el={preview} selected={false} zoom={zoom} />
+            </g>
+          )}
+
+          {/* Snap Indicator */}
+          {activeSnap && (
+            <g pointerEvents="none">
+              <rect
+                x={activeSnap.x - 4 / zoom}
+                y={activeSnap.y - 4 / zoom}
+                width={8 / zoom}
+                height={8 / zoom}
+                fill="none"
+                stroke="#10b981"
+                strokeWidth={1.5 / zoom}
+              />
             </g>
           )}
 

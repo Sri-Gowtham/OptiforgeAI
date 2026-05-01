@@ -56,3 +56,10 @@ model Suggestion {
   status      String?  @default("PENDING")
   createdAt   DateTime @default(now())
 }
+
+model Design {
+  id        String   @id @default(uuid())
+  name      String
+  data      Json
+  createdAt DateTime @default(now())
+}

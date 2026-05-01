@@ -10,14 +10,18 @@ import { useEditorStore, getGeometry } from '@/components/editor/useEditorStore'
 import Canvas from '@/components/editor/Canvas'
 import EditorToolbar from '@/components/editor/Toolbar'
 import EditorSidebar from '@/components/editor/EditorSidebar'
+import { designAPI } from '@/lib/api'
+import { useSearchParams } from 'next/navigation'
 
 export default function EditorPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading } = useAuth()
   const store = useEditorStore()
-  const { state, setTool, undo, redo, canUndo, canRedo } = store
+  const { state, setTool, undo, redo, loadAIDesign, canUndo, canRedo } = store
 
   const [projectName, setProjectName] = useState('Untitled Design')
+  const [saving, setSaving] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState([
@@ -28,6 +32,45 @@ export default function EditorPage() {
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [user, loading, router])
+
+  // Load design if ID in URL
+  useEffect(() => {
+    const designId = searchParams.get('id')
+    if (designId) {
+      designAPI.getById(designId).then(design => {
+        setProjectName(design.name)
+        loadAIDesign(design.data.elements, design.data.constraints)
+      }).catch(err => console.error('Failed to load design', err))
+    }
+  }, [searchParams, loadAIDesign])
+
+  // AI Transfer load
+  useEffect(() => {
+    const transfer = localStorage.getItem('optiforge_ai_cad_transfer')
+    if (transfer) {
+      try {
+        const data = JSON.parse(transfer)
+        if (data.elements) {
+          loadAIDesign(data.elements, data.constraints || [])
+        }
+        localStorage.removeItem('optiforge_ai_cad_transfer')
+      } catch (e) {
+        console.error('Failed to load AI transfer', e)
+      }
+    }
+  }, [loadAIDesign])
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await designAPI.save(projectName, state.elements, state.constraints)
+      alert('Design saved successfully!')
+    } catch (err) {
+      alert('Failed to save design')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -119,6 +162,7 @@ export default function EditorPage() {
           onExportSVG={exportSVG}
           onExportDXF={downloadDXF}
           onAnalyze={() => router.push('/optimizer')}
+          onSave={handleSave}
         />
 
         {/* Main area: left mini toolbar + canvas + right panel */}

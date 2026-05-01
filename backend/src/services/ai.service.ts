@@ -18,6 +18,22 @@ export interface Geometry {
 
 const SCALE_MAP: Record<string,number> = { '1:1':1, '1:2':0.5, '1:5':0.2 };
 
+interface AIElement {
+  id?: string;
+  type: 'rect' | 'circle' | 'line';
+  x?: number; y?: number; width?: number; height?: number;
+  cx?: number; cy?: number; r?: number;
+  x1?: number; y1?: number; x2?: number; y2?: number;
+}
+
+interface AIConstraint {
+  id?: string;
+  type: 'parallel' | 'equal' | 'fixed' | 'horizontal' | 'vertical';
+  referenceId: string;
+  targetIds: string[];
+  value?: number;
+}
+
 function buildGeometry(d: DesignData, seed: number): Geometry {
   const scales  = Object.keys(SCALE_MAP);
   const scale   = scales[seed % scales.length];
@@ -306,10 +322,82 @@ ${border}${floorPlan}${side}${topView}${tb}
 </svg>`;
 }
 
-// ── AIService ─────────────────────────────────────────────────────────────────
+
 export class AIService {
   private generateEngineeringSVG(type: 'mechanical'|'architectural', d: DesignData, geo: Geometry): string {
     return type === 'architectural' ? architecturalSVG(d) : mechanicalSVG(d, geo);
+  }
+
+  async generateCADGeometry(prompt: string): Promise<any> {
+    const systemPrompt = `You are a CAD engineering assistant. Output ONLY valid JSON for a CAD design.
+    Units: mm. Primitives: rect, circle, line.
+    JSON Structure:
+    {
+      "elements": [
+        { "type": "rect", "x": 0, "y": 0, "width": 200, "height": 150 },
+        { "type": "circle", "cx": 100, "cy": 75, "r": 20 }
+      ],
+      "constraints": [
+        { "type": "fixed", "referenceId": "e0", "targetIds": ["e0"], "value": 200 }
+      ]
+    }
+    Rules: No text. No explanation. Only JSON. Elements must have unique types and logical coords.`;
+
+    try {
+      const response = await fetch('https://text.pollinations.ai/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt }
+          ],
+          model: 'openai'
+        })
+      });
+      const text = await response.text();
+      return this.parseAIToGeometry(text);
+    } catch (e) {
+      return this.getFallbackGeometry();
+    }
+  }
+
+  private parseAIToGeometry(text: string) {
+    try {
+      const cleaned = text.replace(/```json|```/g, '').trim();
+      const data = JSON.parse(cleaned);
+      const elements = (data.elements || []).map((el: any, i: number) => ({
+        ...el,
+        id: el.id || `ai-el-${i}`,
+        layerId: 'layer-1',
+        stroke: '#ffffff',
+        strokeWidth: 2,
+        fill: el.type === 'circle' ? 'transparent' : 'rgba(255,255,255,0.05)',
+        opacity: 1,
+        visible: true,
+        locked: false
+      }));
+      const constraints = (data.constraints || []).map((c: any, i: number) => ({
+        ...c,
+        id: c.id || `ai-c-${i}`
+      }));
+      return { elements, constraints };
+    } catch {
+      return this.getFallbackGeometry();
+    }
+  }
+
+  private getFallbackGeometry() {
+    return {
+      elements: [
+        { id: 'f-1', type: 'rect', x: 0, y: 0, width: 200, height: 120, layerId: 'layer-1', stroke: '#fff', strokeWidth: 2, fill: 'rgba(255,255,255,0.05)', opacity: 1, visible: true, locked: false },
+        { id: 'f-2', type: 'circle', cx: 50, cy: 60, r: 15, layerId: 'layer-1', stroke: '#fff', strokeWidth: 2, fill: 'transparent', opacity: 1, visible: true, locked: false },
+        { id: 'f-3', type: 'circle', cx: 150, cy: 60, r: 15, layerId: 'layer-1', stroke: '#fff', strokeWidth: 2, fill: 'transparent', opacity: 1, visible: true, locked: false }
+      ],
+      constraints: [
+        { id: 'fc-1', type: 'equal', referenceId: 'f-2', targetIds: ['f-3'] }
+      ]
+    };
   }
 
   async generateDesign(userPrompt: string, designType: 'mechanical'|'architectural' = 'mechanical'): Promise<any> {
@@ -317,6 +405,7 @@ export class AIService {
     const data  = extractDesignData(userPrompt, designType, seed);
     const geo   = buildGeometry(data, seed);
     const svg   = this.generateEngineeringSVG(designType, data, geo);
+    const cad   = await this.generateCADGeometry(userPrompt);
 
     let imageUrl: string|undefined;
     try {
@@ -333,19 +422,9 @@ export class AIService {
         material: data.material, maxLoad: `${data.load} kg`,
         ...(isMech ? { holeDiameter:`⌀${data.holeDiameter} mm`, holeCount:`${data.holeCount}×` } : {}),
       },
-      components: isMech
-        ? [{name:'Base Plate',material:data.material},{name:`Bolt Holes ×${data.holeCount}`,material:'N/A'},{name:'Surface Finish',material:'Anodised'}]
-        : [{name:'Foundation',material:'RC Concrete'},{name:'Frame',material:data.material},{name:'Partitions',material:'Drywall'}],
-      manufacturingSteps: isMech
-        ? [`Cut ${data.material} to ${data.width}×${data.height}×${data.depth} mm`,`Drill ${data.holeCount}× ⌀${data.holeDiameter} mm through-holes`,'De-burr, chamfer 0.5 mm','Anodise / powder-coat','CMM inspection ±0.1 mm']
-        : ['Site survey & soil investigation',`Lay RC foundation ${data.width}×${data.height} mm`,'Erect structural frame','Install partitions & glazing','MEP fit-out & commissioning'],
-      safetyConsiderations: isMech
-        ? ['Verify yield strength vs max load','Corrosion-resistant finish required','Weld inspection per ISO 5817']
-        : ['Structural engineer sign-off','Fire egress per local code','Wind & seismic load verification'],
-      designNotes: `Generated from: "${userPrompt.slice(0,120)}"`,
+      cadGeometry: cad,
       svgBlueprint: svg,
       imageUrl,
-      // ── unified geometry + scale (single source of truth) ──
       scale:    geo.scale,
       units:    'mm',
       tolerance: geo.tolerance,
@@ -367,9 +446,11 @@ export class AIService {
       ],
     };
   }
+
   async enhanceDesign(cur: string, req: string) {
     return {enhancedDescription:`Enhanced: ${cur.slice(0,60)} — ${req.slice(0,60)}`,changes:['Reinforcement added'],improvements:['20% load capacity'],newCostEstimate:650,performanceGain:'+20%'};
   }
+
   async getDesignTip(context='general engineering') {
     return `Engineering tip for ${context}: Always validate tolerances before production.`;
   }
