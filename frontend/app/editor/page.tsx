@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import Sidebar from '@/components/Sidebar'
-import { MessageSquare, ArrowRight, X } from 'lucide-react'
+
 import { cn } from '@/lib/utils'
 import { useEditorStore, getGeometry } from '@/components/editor/useEditorStore'
 import Canvas from '@/components/editor/Canvas'
@@ -22,11 +22,7 @@ export default function EditorPage() {
 
   const [projectName, setProjectName] = useState('Untitled Design')
   const [saving, setSaving] = useState(false)
-  const [showChat, setShowChat] = useState(false)
-  const [chatInput, setChatInput] = useState('')
-  const [chatMessages, setChatMessages] = useState([
-    { role: 'assistant', text: 'Hi! Ask me anything about your design.' },
-  ])
+
 
   // Auth guard
   useEffect(() => {
@@ -134,18 +130,7 @@ export default function EditorPage() {
     }
   }
 
-  function sendChat() {
-    if (!chatInput.trim()) return
-    const msg = chatInput.trim()
-    setChatInput('')
-    setChatMessages((prev) => [...prev, { role: 'user', text: msg }])
-    setTimeout(() => {
-      setChatMessages((prev) => [
-        ...prev,
-        { role: 'assistant', text: 'Based on your design, I suggest reviewing the load-bearing joints for optimal performance.' },
-      ])
-    }, 900)
-  }
+
 
   if (loading || !user) return null
 
@@ -234,54 +219,7 @@ export default function EditorPage() {
         </div>
       </div>
 
-      {/* AI Chat */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-        {showChat && (
-          <div className="w-72 bg-[#13131f] border border-white/10 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
-            <div className="flex items-center justify-between p-4 border-b border-white/[0.06]">
-              <h4 className="text-sm font-bold text-white">AI Design Assistant</h4>
-              <button onClick={() => setShowChat(false)} className="text-gray-500 hover:text-white transition-colors">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="h-48 overflow-y-auto p-4 space-y-3">
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                  <div className={cn(
-                    'max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed',
-                    msg.role === 'user' ? 'bg-indigo-600/40 text-white' : 'bg-white/[0.06] text-gray-300'
-                  )}>
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="p-3 border-t border-white/[0.06] flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && sendChat()}
-                placeholder="Ask about your design..."
-                className="flex-1 bg-white/[0.05] border border-white/[0.1] rounded-lg px-3 py-2 text-white text-xs placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-              />
-              <button
-                onClick={sendChat}
-                disabled={!chatInput.trim()}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white transition-colors"
-              >
-                <ArrowRight size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-        <button
-          onClick={() => setShowChat(!showChat)}
-          className="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 transition-all hover:scale-105"
-        >
-          <MessageSquare size={20} />
-        </button>
-      </div>
+
     </div>
   )
 }

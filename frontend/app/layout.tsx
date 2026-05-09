@@ -1,36 +1,35 @@
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
-import { Toaster } from 'sonner'
-import { AuthProvider } from '@/lib/auth'
-import { ThemeProvider } from '@/components/theme-provider'
-import './globals.css'
+'use client';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import { AuthProvider } from '@/lib/auth';
+import { ThemeProvider } from 'next-themes';
+import { usePathname } from 'next/navigation';
+import dynamic from 'next/dynamic';
 
-const _geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
-const _geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
+const ChatBot = dynamic(() => import('@/components/ChatBot'), { ssr: false });
+const inter = Inter({ subsets: ['latin'] });
 
-export const metadata: Metadata = {
-  title: 'OptiForge AI – Industrial Design Optimization',
-  description: 'AI-powered industrial design optimization platform for engineering students.',
-  generator: 'v0.app',
+function InnerLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const hideChat = pathname === '/login' || pathname === '/register';
+  return (
+    <>
+      {children}
+      {!hideChat && <ChatBot />}
+    </>
+  );
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} storageKey="optiforge-theme">
           <AuthProvider>
-            {children}
-            <Toaster richColors position="top-right" />
+            <InnerLayout>{children}</InnerLayout>
           </AuthProvider>
         </ThemeProvider>
-        <Analytics />
       </body>
     </html>
-  )
+  );
 }

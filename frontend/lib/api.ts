@@ -297,8 +297,18 @@ export const designAPI = {
   },
 
   async getAll(): Promise<any[]> {
-    const res = await fetch(`${API_BASE}/api/design`);
-    if (!res.ok) throw new Error('Failed to fetch designs');
-    return res.json();
+    console.log('API_BASE:', API_BASE);
+    try {
+      const res = await fetch(`${API_BASE}/api/design`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error('DESIGN FETCH ERROR:', res.status, body);
+        throw new Error(body.error || `Failed to fetch designs (${res.status})`);
+      }
+      return res.json();
+    } catch (e: any) {
+      console.error('DESIGN FETCH ERROR:', e.message);
+      throw e;
+    }
   }
 };

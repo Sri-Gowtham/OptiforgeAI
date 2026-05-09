@@ -29,13 +29,16 @@ export class DesignController {
   }
 
   async getAll(req: Request, res: Response) {
+    console.log('GET DESIGNS HIT');
     try {
       const designs = await prisma.design.findMany({
         orderBy: { createdAt: 'desc' }
       });
       return res.json(designs);
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      console.error('BACKEND ERROR (getAll):', err.message);
+      // DB not reachable — return empty list so frontend doesn't crash
+      return res.json([]);
     }
   }
 }
