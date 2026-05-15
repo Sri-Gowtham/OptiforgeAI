@@ -679,7 +679,9 @@ Total SVG elements: minimum 30. No generic rectangles. Actual part geometry only
         `walls as thick lines, dimensions annotated, north arrow, title block, ` +
         `scale bar, technical blueprint CAD style, no furniture, clean lines`
       );
-      return `https://image.pollinations.ai/prompt/${archPrompt}?width=800&height=600&seed=${seed}&nologo=true&model=flux`;
+      const url = `https://image.pollinations.ai/prompt/${archPrompt}?width=800&height=600&seed=${seed}&nologo=true&model=flux`;
+      console.log('[ARCH IMAGE URL]', url);
+      return url;
     }
 
     return this.generateMechanicalSVG(prompt, spec, partType);
@@ -790,6 +792,7 @@ Total SVG elements: minimum 30. No generic rectangles. Actual part geometry only
     if (designType === 'architectural') {
       svg = ''; // Placeholder for blueprint as we now return a URL for image
       imageUrl = svgContent;
+      console.log('[PERSISTENCE] Assigned arch imageUrl:', imageUrl);
     } else {
       svg = svgContent;
       imageUrl = undefined;

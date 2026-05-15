@@ -310,18 +310,19 @@ export const dashboardAPI = {
 }
 
 export const designAPI = {
-  async save(name: string, elements: any[], constraints: any[], id?: string, sourceType: 'manual' | 'ai' = 'manual'): Promise<any> {
+  async save(name: string, elements: any[], constraints: any[], id?: string, sourceType: 'manual' | 'ai' = 'manual', imageUrl?: string): Promise<any> {
     const finalId = id || `local-${Date.now()}`;
     const payload = { 
       id: finalId,
       name, 
       sourceType,
+      imageUrl,
       data: { elements, constraints },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    console.log('[SAVE] Saving design:', finalId);
+    console.log('[SAVE] Saving design:', finalId, 'Has image:', !!imageUrl);
 
     // Always save to local collection for persistence/offline
     const editorState: EditorSaveState = {
@@ -332,7 +333,8 @@ export const designAPI = {
         createdAt: payload.createdAt,
         updatedAt: payload.updatedAt,
         version: '1.0',
-        designType: 'mechanical'
+        designType: 'mechanical',
+        imageUrl
       },
       elements,
       layers: [],

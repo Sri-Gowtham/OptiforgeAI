@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { analysisAPI, projectsAPI, designAPI, type DesignResult, type Project } from '@/lib/api'
+import { buildArchitecturalImage } from '@/lib/buildArchitecturalImage'
 import Sidebar from '@/components/Sidebar'
 import {
   Sparkles,
@@ -104,6 +105,89 @@ function ProgressAnimation() {
   )
 }
 
+function ArchitecturalPreview({ url: initialUrl, prompt }: { url: string; prompt: string }) {
+  const [url, setUrl] = useState(initialUrl);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const startTime = useRef(Date.now());
+  const maxRetries = 3;
+
+  useEffect(() => {
+    console.log('[ARCH IMG INIT]', { url: url.slice(0, 50) + '...', retryCount });
+    startTime.current = Date.now();
+    setLoading(true);
+    setError(false);
+  }, [url, retryCount]);
+
+  const handleLoad = () => {
+    const duration = Date.now() - startTime.current;
+    console.log('[ARCH IMG LOADED]', { duration: `${duration}ms`, retryCount });
+    setLoading(false);
+  };
+
+  const handleError = () => {
+    if (retryCount < maxRetries) {
+      const nextRetry = retryCount + 1;
+      const newUrl = `${buildArchitecturalImage(prompt)}&retry=${Date.now()}`;
+      console.log('[ARCH IMG RETRY]', { count: nextRetry, newUrl: newUrl.slice(0, 50) + '...' });
+      setRetryCount(nextRetry);
+      setUrl(newUrl);
+    } else {
+      console.error('[ARCH IMG FAILED]', { finalRetryCount: retryCount });
+      setLoading(false);
+      setError(true);
+    }
+  };
+
+  return (
+    <div className="relative w-full min-h-[420px] aspect-[4/3] max-h-[600px] overflow-hidden rounded-xl bg-gray-900 shadow-2xl"
+         style={{ backgroundImage: 'radial-gradient(circle, #4f46e5 1px, transparent 1px)', backgroundSize: '30px 30px' }}>
+      {loading && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-900/80 backdrop-blur-sm">
+          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-indigo-400 font-mono text-xs animate-pulse tracking-widest uppercase">Rendering Architectural Plan...</p>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+        </div>
+      )}
+
+      {error ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-gray-900/90 backdrop-blur-md border-2 border-dashed border-red-500/30 rounded-xl">
+          <div className="p-4 rounded-full bg-red-500/10 text-red-500 mb-4">
+            <AlertTriangle size={32} />
+          </div>
+          <h4 className="text-white font-bold mb-2">Preview generation failed</h4>
+          <p className="text-white/50 text-sm max-w-xs mb-6">
+            The architectural specification was generated successfully.
+          </p>
+          <button 
+            onClick={() => { 
+              setRetryCount(0); 
+              setUrl(`${buildArchitecturalImage(prompt)}&refresh=${Date.now()}`); 
+            }}
+            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-all"
+          >
+            Retry Rendering
+          </button>
+        </div>
+      ) : (
+        <img
+          src={url}
+          alt="Architectural Preview"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
+          onLoad={handleLoad}
+          onError={handleError}
+          className={`w-full h-full object-contain transition-all duration-700 ease-out ${
+            loading ? 'scale-110 blur-xl opacity-0' : 'scale-100 blur-0 opacity-100'
+          }`}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function CreatePage() {
   const router = useRouter()
   const { user, loading } = useAuth()
@@ -135,10 +219,8 @@ export default function CreatePage() {
     setResult(null)
     try {
       const data = await analysisAPI.generateDesign(prompt, designType)
-      console.log('RAW DATA FROM API:', data)
-      console.log('FULL API RESPONSE:', data)
-      console.log('IMAGE URL:', data?.imageUrl)
-      console.log('RESULT STATE SET:', JSON.stringify(data).slice(0, 200))
+      console.log('[ARCH IMAGE URL]', data?.imageUrl)
+      console.log('[RESULT STATE SET]', JSON.stringify(data).slice(0, 200))
       setResult(data)
       toast.success('Design generated successfully')
     } catch (err: unknown) {
@@ -156,14 +238,15 @@ export default function CreatePage() {
         // Save to existing project (in a real app)
         toast.success('Saved to project')
       } else if (projectName.trim()) {
-        console.log('[AI SAVE] Saving AI design as project:', projectName);
+        console.log('[PERSISTENCE] Saving AI design with image:', result.imageUrl);
         const cad = result.cadGeometry || { elements: [], constraints: [] };
         await designAPI.save(
           projectName.trim(), 
           cad.elements || [], 
           cad.constraints || [], 
           undefined, 
-          'ai'
+          'ai',
+          result.imageUrl
         );
         toast.success('AI design saved to collection');
       } else {
@@ -449,8 +532,12 @@ export default function CreatePage() {
               {result && (
                 <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-8">
                   <div className="flex items-center justify-between mb-6">
-                    <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">Engineering Blueprint (Scaled Drawing)</label>
-                    <span className="px-2 py-1 rounded-full bg-indigo-600/20 text-indigo-300 text-xs font-semibold">SVG · Scale {result.scale || '1:1'}</span>
+                    <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">
+                      {designType === 'architectural' ? 'Architectural AI Visualization' : 'Engineering Blueprint (Scaled Drawing)'}
+                    </label>
+                    <span className="px-2 py-1 rounded-full bg-indigo-600/20 text-indigo-300 text-xs font-semibold">
+                      {designType === 'architectural' ? 'AI GENERATED' : `SVG · Scale ${result.scale || '1:1'}`}
+                    </span>
                   </div>
 
                   {result.svgBlueprint ? (
@@ -459,12 +546,9 @@ export default function CreatePage() {
                       dangerouslySetInnerHTML={{ __html: result.svgBlueprint }}
                     />
                   ) : result.imageUrl ? (
-                    <img
-                      src={result.imageUrl}
-                      alt="design preview"
-                      referrerPolicy="no-referrer"
-                      className="w-full max-h-[600px] object-contain rounded-xl"
-                    />
+                    <div className="relative group overflow-hidden rounded-xl bg-[#0a0a0f] border border-white/10">
+                      <ArchitecturalPreview url={result.imageUrl} prompt={prompt} />
+                    </div>
                   ) : (
                     <div className="text-white/30 text-sm py-16 text-center">No design generated</div>
                   )}

@@ -12,6 +12,7 @@ export interface EditorMetadata {
   updatedAt: string;
   version: string;
   designType: 'mechanical' | 'architectural' | 'general';
+  imageUrl?: string;
 }
 
 export interface EditorSaveState {
@@ -41,6 +42,7 @@ export function safeParseEditorState(raw: string): EditorSaveState | null {
         updatedAt: parsed.metadata?.updatedAt || new Date().toISOString(),
         version: parsed.metadata?.version || '1.0',
         designType: parsed.metadata?.designType || 'general',
+        imageUrl: parsed.metadata?.imageUrl || parsed.imageUrl,
       },
       elements: elements,
       layers: Array.isArray(parsed.layers) ? parsed.layers : [],
