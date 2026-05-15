@@ -48,6 +48,7 @@ export default function EditorToolbar({
   onExportSVG,
   onExportDXF,
   onAnalyze,
+  onSave,
 }: {
   store: ReturnType<typeof useEditorStore>
   projectName: string

@@ -1,5 +1,6 @@
 import * as dotenvSafe from 'dotenv';
 dotenvSafe.config();
+import Groq from 'groq-sdk';
 
 interface DesignData {
   title: string; material: string;
@@ -324,8 +325,68 @@ ${border}${floorPlan}${side}${topView}${tb}
 
 
 export class AIService {
+  private groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
+
   private generateEngineeringSVG(type: 'mechanical'|'architectural', d: DesignData, geo: Geometry): string {
     return type === 'architectural' ? architecturalSVG(d) : mechanicalSVG(d, geo);
+  }
+
+  // ── detectPartType ─────────────────────────────────────────────────────────
+  detectPartType(prompt: string): 'bracket'|'gear'|'shaft'|'frame'|'enclosure'|'assembly'|'generic' {
+    const p = prompt.toLowerCase();
+    if (p.includes('bracket') || p.includes('mount') || p.includes('clamp'))   return 'bracket';
+    if (p.includes('gear')    || p.includes('sprocket') || p.includes('pinion')) return 'gear';
+    if (p.includes('shaft')   || p.includes('axle')     || p.includes('spindle')) return 'shaft';
+    if (p.includes('frame')   || p.includes('chassis')  || p.includes('skeleton')) return 'frame';
+    if (p.includes('enclosure') || p.includes('housing') || p.includes('casing')) return 'enclosure';
+    if (p.includes('assembly') || p.includes('subassembly') || p.includes('kit')) return 'assembly';
+    return 'generic';
+  }
+
+  // ── generateMechanicalSVG (Groq → fallback) ────────────────────────────────
+  async generateMechanicalSVG(prompt: string, d: DesignData, geo: Geometry): Promise<string> {
+    const partType = this.detectPartType(prompt);
+    const systemPrompt = `You are a CAD drafting engine. Output ONLY a valid, complete SVG string (no markdown, no explanation).
+Produce an engineering-quality orthographic drawing of a ${partType} mechanical component.
+The SVG must include:
+- Outer border rectangle with fill:#f8f9fc
+- Front view, Side view, Top view (labeled)
+- Hidden lines as stroke-dasharray="6,4" stroke="#888"
+- Center lines as stroke-dasharray="12,3,2,3" stroke="#cc2222"
+- Dimension annotations with arrowheads (width=${d.width}mm, height=${d.height}mm, depth=${d.depth}mm)
+- A title block with: TITLE=${d.title}, MATERIAL=${d.material}, SCALE=${geo.scale}, DATE=${new Date().toLocaleDateString('en-GB')}, DRAWN BY=OptiForge AI
+- SVG dimensions: width="1080" height="780"
+Output only the raw SVG string starting with <svg`;
+
+    try {
+      const completion = await this.groq.chat.completions.create({
+        model: 'llama3-8b-8192',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: `Generate orthographic engineering drawing for: ${prompt}` },
+        ],
+        max_tokens: 3000,
+        temperature: 0.1,
+      });
+
+      const raw = completion.choices?.[0]?.message?.content?.trim() || '';
+      // Validate it looks like an SVG
+      if (raw.startsWith('<svg') && raw.includes('</svg>')) {
+        console.log('Mechanical SVG generated (Groq)');
+        return raw;
+      }
+      throw new Error('Groq returned non-SVG content');
+    } catch (err: any) {
+      console.error('Mechanical SVG error:', err?.message || err);
+      // Fallback to deterministic SVG generator
+      return mechanicalSVG(d, geo);
+    }
+  }
+
+  // ── generateArchitecturalImage (Pollinations) ──────────────────────────────
+  generateArchitecturalImage(prompt: string, seed: number): string {
+    const enc = encodeURIComponent(prompt.trim().replace(/[.\s]+$/, ''));
+    return `https://image.pollinations.ai/prompt/${enc}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`;
   }
 
   async generateCADGeometry(prompt: string): Promise<any> {
@@ -404,16 +465,24 @@ export class AIService {
     const seed = Date.now();
     const data  = extractDesignData(userPrompt, designType, seed);
     const geo   = buildGeometry(data, seed);
-    const svg   = this.generateEngineeringSVG(designType, data, geo);
     const cad   = await this.generateCADGeometry(userPrompt);
 
-    let imageUrl: string|undefined;
-    try {
-      const enc = encodeURIComponent(userPrompt.trim().replace(/[.\s]+$/,''));
-      imageUrl = `https://image.pollinations.ai/prompt/${enc}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`;
-    } catch { /* optional */ }
-
     const isMech = designType === 'mechanical';
+
+    // Mechanical → Groq SVG blueprint (with deterministic fallback)
+    // Architectural → Pollinations imageUrl (existing flow preserved)
+    let svg: string;
+    let imageUrl: string|undefined;
+
+    if (isMech) {
+      svg = await this.generateMechanicalSVG(userPrompt, data, geo);
+      // Mechanical designs don't produce imageUrl
+    } else {
+      // Architectural: keep existing deterministic SVG + Pollinations image
+      svg = this.generateEngineeringSVG('architectural', data, geo);
+      imageUrl = this.generateArchitecturalImage(userPrompt, seed);
+    }
+
     return {
       name: data.title, title: data.title, description: userPrompt,
       estimatedCost: isMech ? data.load*12 : data.width*data.height*0.004,

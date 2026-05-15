@@ -44,8 +44,10 @@ export default function ChatBot() {
       });
       const data = await res.json();
       setMessages(p => [...p, { role: 'ai', content: data.answer || 'Sorry, try again.' }]);
-    } catch {
+    } catch (e: any) {
+      console.error('CHAT ERROR:', e);
       setMessages(p => [...p, { role: 'ai', content: 'Connection error. Please try again.' }]);
+
     } finally {
       setLoading(false);
     }
@@ -65,7 +67,7 @@ export default function ChatBot() {
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {messages.map((m, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                <div style={{ maxWidth: '85%', padding: '8px 12px', borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px', background: m.role === 'user' ? '#6366f1' : 'rgba(255,255,255,0.07)', color: 'white', fontSize: '13px', lineHeight: 1.5, border: m.role === 'ai' ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>
+                <div style={{ maxWidth: '85%', padding: '8px 12px', borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px', background: m.role === 'user' ? '#6366f1' : 'rgba(255,255,255,0.07)', color: 'white', fontSize: '13px', lineHeight: 1.5, border: m.role === 'ai' ? '1px solid rgba(255,255,255,0.1)' : 'none', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                   {m.content}
                 </div>
               </div>
