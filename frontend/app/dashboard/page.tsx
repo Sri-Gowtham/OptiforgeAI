@@ -73,9 +73,16 @@ function StatCard({
 }
 
 function ProjectCard({ project }: { project: Project }) {
+  const router = useRouter()
   const initial = project.name[0]?.toUpperCase() ?? 'P'
   return (
-    <div className="bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl p-5 hover:bg-gray-50 dark:hover:bg-white/[0.05] transition-all">
+    <div 
+      onClick={() => {
+        console.log(`[Dashboard] Opening project: ${project.id}`);
+        router.push(`/editor?id=${project.id}`);
+      }}
+      className="bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl p-5 hover:bg-gray-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-600/20"
+    >
       <div className="flex items-start gap-4 mb-4">
         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white font-semibold text-sm shrink-0">
           {initial}

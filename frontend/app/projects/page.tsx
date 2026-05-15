@@ -302,7 +302,10 @@ export default function ProjectsPage() {
               {filtered.map((p) => (
                 <div
                   key={p.id}
-                  onClick={() => router.push(`/projects/${p.id}`)}
+                  onClick={() => {
+                    console.log(`[Projects] Opening project: ${p.id}`);
+                    router.push(`/editor?id=${p.id}`);
+                  }}
                   className="group relative bg-white dark:bg-white/[0.03] backdrop-blur border border-gray-200 dark:border-white/[0.08] hover:border-indigo-600/40 rounded-xl p-5 transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-600/20 hover:-translate-y-1"
                 >
                   {/* Type Badge */}
@@ -352,7 +355,10 @@ export default function ProjectsPage() {
               {filtered.map((p) => (
                 <div
                   key={p.id}
-                  onClick={() => router.push(`/projects/${p.id}`)}
+                  onClick={() => {
+                    console.log(`[Projects] Opening project: ${p.id}`);
+                    router.push(`/editor?id=${p.id}`);
+                  }}
                   className="group relative bg-white dark:bg-white/[0.03] backdrop-blur border border-gray-200 dark:border-white/[0.08] hover:border-indigo-600/40 rounded-xl p-4 transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-600/20"
                 >
                   <div className="flex items-center gap-4 justify-between">

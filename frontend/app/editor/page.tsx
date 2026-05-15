@@ -12,6 +12,9 @@ import EditorToolbar from '@/components/editor/Toolbar'
 import EditorSidebar from '@/components/editor/EditorSidebar'
 import { designAPI } from '@/lib/api'
 import { useSearchParams } from 'next/navigation'
+import EditorSaveBar from '@/components/EditorSaveBar';
+import { useAutosave, EditorSaveState } from '@/lib/editorPersistence';
+
 
 export default function EditorPage() {
   const router = useRouter()
@@ -22,6 +25,35 @@ export default function EditorPage() {
 
   const [projectName, setProjectName] = useState('Untitled Design')
   const [saving, setSaving] = useState(false)
+  const [loadingProject, setLoadingProject] = useState(false)
+  const [projectError, setProjectError] = useState<string | null>(null)
+
+  const { setZoom, setOffset } = store
+
+  const getEditorState = useCallback((): EditorSaveState => ({
+    metadata: {
+      name: projectName,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      version: '1.0',
+      designType: 'mechanical',
+    },
+    elements: state.elements || [],
+    layers: state.layers || [],
+    constraints: state.constraints || [],
+    dimensions: [],
+    zoom: state.zoom || 1,
+    pan: state.offset || { x: 0, y: 0 },
+  }), [projectName, state.elements, state.layers, state.constraints, state.zoom, state.offset]);
+
+  useAutosave(getEditorState);
+
+  const handleLoadState = useCallback((s: EditorSaveState) => {
+    loadAIDesign(s.elements || [], s.constraints || []);
+    if (typeof s.zoom === 'number') setZoom(s.zoom);
+    if (s.pan) setOffset(s.pan);
+    if (s.metadata?.name) setProjectName(s.metadata.name);
+  }, [loadAIDesign, setZoom, setOffset, setProjectName]);
 
 
   // Auth guard
@@ -33,10 +65,42 @@ export default function EditorPage() {
   useEffect(() => {
     const designId = searchParams.get('id')
     if (designId) {
-      designAPI.getById(designId).then(design => {
-        setProjectName(design.name)
-        loadAIDesign(design.data.elements, design.data.constraints)
-      }).catch(err => console.error('Failed to load design', err))
+      console.log(`[Editor] Attempting to load project ID: ${designId}`);
+      setLoadingProject(true);
+      setProjectError(null);
+      
+      designAPI.getById(designId)
+        .then(design => {
+          console.log('[Editor] Backend design loaded successfully');
+          setProjectName(design.name)
+          loadAIDesign(design.data.elements, design.data.constraints)
+        })
+        .catch(async (err) => {
+          console.warn('[Editor] Backend load failed, checking LocalStorage fallback...', err.message);
+          
+          // Fallback: Check if it's a metadata-only project in localStorage
+          try {
+            const sessionRaw = localStorage.getItem("optiforge_session");
+            const email = sessionRaw ? JSON.parse(sessionRaw).email : null;
+            if (email) {
+              const projects: any[] = JSON.parse(localStorage.getItem(`optiforge_projects_${email}`) || "[]");
+              const localProj = projects.find(p => p.id === designId);
+              if (localProj) {
+                console.log('[Editor] Found local metadata project:', localProj.name);
+                setProjectName(localProj.name);
+                // Starts with empty canvas if no backend data
+              } else {
+                setProjectError('The requested project could not be found in the backend or local storage.');
+              }
+            } else {
+              setProjectError('Session not found. Please log in again.');
+            }
+          } catch (fallbackErr) {
+            console.error('[Editor] Fallback check failed:', fallbackErr);
+            setProjectError('Failed to load project data.');
+          }
+        })
+        .finally(() => setLoadingProject(false));
     }
   }, [searchParams, loadAIDesign])
 
@@ -149,6 +213,16 @@ export default function EditorPage() {
           onAnalyze={() => router.push('/optimizer')}
           onSave={handleSave}
         />
+        
+        <div className="bg-[#0d0d14] border-b border-white/[0.06] px-4 py-1 flex justify-center">
+          <EditorSaveBar
+            getState={getEditorState}
+            onLoad={handleLoadState}
+            designName={projectName}
+            onNameChange={setProjectName}
+          />
+        </div>
+
 
         {/* Main area: left mini toolbar + canvas + right panel */}
         <div className="flex-1 flex overflow-hidden">
@@ -198,6 +272,38 @@ export default function EditorPage() {
           {/* Canvas */}
           <div className="flex-1 relative overflow-hidden">
             <Canvas store={store} />
+
+            {/* Loading/Error Overlays */}
+            {loadingProject && (
+              <div className="absolute inset-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-sm flex flex-col items-center justify-center text-white">
+                <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-sm font-medium">Fetching design data...</p>
+              </div>
+            )}
+
+            {projectError && (
+              <div className="absolute inset-0 z-50 bg-[#0a0a0f]/90 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 text-center">
+                <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-6">
+                  <span className="text-3xl font-bold">!</span>
+                </div>
+                <h2 className="text-xl font-bold mb-2">Project Not Found</h2>
+                <p className="text-gray-400 text-sm max-w-md mb-8">{projectError}</p>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => router.push('/dashboard')}
+                    className="px-6 py-2 bg-white/[0.05] hover:bg-white/[0.1] rounded-lg text-sm font-semibold transition-all"
+                  >
+                    Back to Dashboard
+                  </button>
+                  <button 
+                    onClick={() => setProjectError(null)}
+                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-semibold transition-all"
+                  >
+                    New Design
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right panel */}

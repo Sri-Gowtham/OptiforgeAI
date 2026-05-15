@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
@@ -36,6 +36,12 @@ export default function Sidebar() {
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const [showMenu, setShowMenu] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Ensure hydration safety for theme-dependent rendering
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   function handleLogout() {
     logout()
@@ -100,12 +106,14 @@ export default function Sidebar() {
             hover:bg-white/5 dark:hover:bg-white/5 hover:bg-gray-100"
           aria-label="Toggle theme"
         >
-          {theme === 'dark' ? (
+          {!mounted ? (
+            <div className="w-[18px] h-[18px] rounded-full bg-white/10" />
+          ) : theme === 'dark' ? (
             <Sun size={18} className="text-amber-400 shrink-0" />
           ) : (
             <Moon size={18} className="text-indigo-500 shrink-0" />
           )}
-          <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          <span>{!mounted ? '...' : theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
         </button>
 
         {/* User Info */}
