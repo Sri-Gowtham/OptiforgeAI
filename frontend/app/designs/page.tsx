@@ -12,11 +12,31 @@ export default function DesignsPage() {
   const [designs, setDesigns] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const fetchDesigns = () => {
+    console.log('[DESIGNS] Fetching designs...');
+    setLoading(true);
     designAPI.getAll()
-      .then(setDesigns)
+      .then(data => {
+        console.log('[DESIGNS] Loaded:', data.length);
+        setDesigns(data);
+      })
+      .catch(err => console.error('[DESIGNS] Error:', err))
       .finally(() => setLoading(false))
+  };
+
+  useEffect(() => {
+    fetchDesigns();
   }, [])
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this design?')) return;
+    try {
+      await designAPI.delete(id);
+      fetchDesigns();
+    } catch (err) {
+      alert('Failed to delete design');
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-[#0a0a0f] text-white">
@@ -63,9 +83,25 @@ export default function DesignsPage() {
                   <div className="p-2.5 bg-indigo-600/10 rounded-lg text-indigo-400">
                     <FileText size={20} />
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] text-gray-500 font-mono">
-                    <Clock size={10} />
-                    {format(new Date(design.createdAt), 'MMM d, h:mm a')}
+                  <div className="flex items-center gap-3">
+                    {design.sourceType === 'ai' ? (
+                      <span className="px-1.5 py-0.5 bg-purple-500/10 text-purple-400 text-[10px] font-bold rounded border border-purple-500/20">
+                        AI
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-bold rounded border border-blue-500/20">
+                        CAD
+                      </span>
+                    )}
+                    {design.isLocal && (
+                      <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded border border-amber-500/20">
+                        LOCAL
+                      </span>
+                    )}
+                    <div className="flex items-center gap-1 text-[10px] text-gray-500 font-mono">
+                      <Clock size={10} />
+                      {format(new Date(design.createdAt), 'MMM d, h:mm a')}
+                    </div>
                   </div>
                 </div>
 
@@ -76,10 +112,21 @@ export default function DesignsPage() {
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => router.push(`/editor?id=${design.id}`)}
+                    onClick={() => {
+                      const path = design.sourceType === 'ai' ? `/designs/${design.id}` : `/editor?id=${design.id}`;
+                      console.log('[ROUTING] Navigating to:', path, 'Source Type:', design.sourceType);
+                      router.push(path);
+                    }}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/[0.05] hover:bg-indigo-600 text-white rounded-lg text-sm font-medium transition-all"
                   >
                     <ExternalLink size={14} /> Open
+                  </button>
+                  <button
+                    onClick={() => handleDelete(design.id)}
+                    className="p-2 bg-white/[0.05] hover:bg-red-600 text-gray-400 hover:text-white rounded-lg transition-all"
+                    title="Delete Design"
+                  >
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>

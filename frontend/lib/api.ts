@@ -1,13 +1,28 @@
 // Mock API layer for OptiForge AI
 // In production, replace these with real API calls
+import { 
+  loadCollection, 
+  saveToCollection, 
+  deleteFromCollection,
+  EditorSaveState 
+} from './editorPersistence'
 
 export interface Project {
   id: string
   name: string
   description: string
   score: number
+  sourceType: 'manual' | 'ai'
   createdAt: string
+  updatedAt?: string
   type?: 'mechanical' | 'architectural'
+}
+
+export interface Component {
+  name: string
+  quantity: string
+  material: string
+  role: string
 }
 
 export interface DesignResult {
@@ -19,8 +34,9 @@ export interface DesignResult {
   imageUrl?: string
   specifications: { label: string; value: string }[]
   rawSpecifications?: Record<string, any>
-  components: string[]
+  components: Component[]
   manufacturingSteps: string[]
+  safetyConsiderations: string[]
   safetyNotes: string
   designNotes: string
   description?: string
@@ -117,7 +133,9 @@ export const projectsAPI = {
       name,
       description,
       score: Math.floor(Math.random() * 30) + 60,
+      sourceType: 'ai',
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     }
     projects.unshift(newProject)
     localStorage.setItem(`optiforge_projects_${session.email}`, JSON.stringify(projects))
@@ -160,8 +178,7 @@ export const analysisAPI = {
     }
 
     const data = await res.json()
-    console.log('API.TS RAW RESPONSE:', data)
-    console.log('API.TS imageUrl:', data?.imageUrl)
+    console.log('[AI RESULT RAW]', data);
 
     if (sessionRaw) {
       const session = JSON.parse(sessionRaw)
@@ -181,9 +198,22 @@ export const analysisAPI = {
       specRows.unshift({ label: 'Materials', value: (specs.materials as string[]).join(', ') })
     }
 
-    const components: string[] = (data.components || []).map(
-      (c: any) => `${c.name}${c.material ? ` (${c.material})` : ''}`
-    )
+    // Robust components mapping
+    const rawComponents = Array.isArray(data.components) ? data.components : [];
+    const components: Component[] = rawComponents.map((c: any) => ({
+      name: String(c.name || 'Unknown Part'),
+      quantity: String(c.quantity || '1'),
+      material: String(c.material || specs.material || 'Standard'),
+      role: String(c.role || c.description || 'Structural component')
+    }));
+
+    const manufacturingSteps = Array.isArray(data.manufacturingSteps) ? data.manufacturingSteps : [];
+    const safetyConsiderations = Array.isArray(data.safetyConsiderations) ? data.safetyConsiderations : [];
+    const designNotes = data.designNotes || data.description || 'No additional design notes available.';
+
+    console.log('[COMPONENTS]', components);
+    console.log('[MANUFACTURING]', manufacturingSteps);
+    console.log('[SAFETY]', safetyConsiderations);
 
     return {
       name: data.name || data.title || 'Design',
@@ -195,12 +225,12 @@ export const analysisAPI = {
       specifications: specRows,
       rawSpecifications: specs,
       components,
-      manufacturingSteps: data.manufacturingSteps || [],
-      safetyNotes: (data.safetyConsiderations || []).join(' '),
-      designNotes: data.designNotes || data.description || '',
+      manufacturingSteps,
+      safetyConsiderations,
+      safetyNotes: safetyConsiderations.join(' '),
+      designNotes,
       description: data.description,
       designType: data.designType,
-      safetyConsiderations: data.safetyConsiderations,
     }
   },
 
@@ -280,35 +310,129 @@ export const dashboardAPI = {
 }
 
 export const designAPI = {
-  async save(name: string, elements: any[], constraints: any[]): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/design/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, data: { elements, constraints } }),
-    });
-    if (!res.ok) throw new Error('Failed to save design');
-    return res.json();
+  async save(name: string, elements: any[], constraints: any[], id?: string, sourceType: 'manual' | 'ai' = 'manual'): Promise<any> {
+    const finalId = id || `local-${Date.now()}`;
+    const payload = { 
+      id: finalId,
+      name, 
+      sourceType,
+      data: { elements, constraints },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    console.log('[SAVE] Saving design:', finalId);
+
+    // Always save to local collection for persistence/offline
+    const editorState: EditorSaveState = {
+      metadata: {
+        id: finalId,
+        name,
+        sourceType,
+        createdAt: payload.createdAt,
+        updatedAt: payload.updatedAt,
+        version: '1.0',
+        designType: 'mechanical'
+      },
+      elements,
+      layers: [],
+      constraints,
+      dimensions: [],
+      zoom: 1,
+      pan: { x: 0, y: 0 }
+    };
+    saveToCollection(editorState);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/design/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        console.warn('[SAVE] Backend save failed, but local copy is safe');
+      }
+      return res.ok ? res.json() : payload;
+    } catch (e) {
+      console.warn('[SAVE] Backend unreachable, local copy saved', e);
+      return payload;
+    }
   },
 
   async getById(id: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/api/design/${id}`);
-    if (!res.ok) throw new Error('Failed to load design');
-    return res.json();
+    console.log('[LOAD] Fetching design:', id);
+    try {
+      const res = await fetch(`${API_BASE}/api/design/${id}`);
+      if (res.ok) return res.json();
+    } catch (e) {
+      console.warn('[LOAD] Backend fetch failed, checking local collection');
+    }
+
+    const localCollection = loadCollection();
+    const local = localCollection.find(i => i.metadata.id === id);
+    if (local) {
+      console.log('[LOAD] Found in local collection');
+      return {
+        id: local.metadata.id,
+        name: local.metadata.name,
+        sourceType: local.metadata.sourceType || 'manual',
+        data: { elements: local.elements, constraints: local.constraints },
+        createdAt: local.metadata.createdAt,
+        updatedAt: local.metadata.updatedAt
+      };
+    }
+
+    throw new Error('Design not found');
   },
 
   async getAll(): Promise<any[]> {
-    console.log('API_BASE:', API_BASE);
+    console.log('[DESIGNS] Fetching all designs');
+    let backendDesigns: any[] = [];
     try {
       const res = await fetch(`${API_BASE}/api/design`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        console.error('DESIGN FETCH ERROR:', res.status, body);
-        throw new Error(body.error || `Failed to fetch designs (${res.status})`);
+      if (res.ok) {
+        backendDesigns = await res.json();
       }
-      return res.json();
-    } catch (e: any) {
-      console.error('DESIGN FETCH ERROR:', e.message);
-      throw e;
+    } catch (e) {
+      console.warn('[DESIGNS] Backend fetch failed');
+    }
+
+    const localCollection = loadCollection();
+    const localDesigns = localCollection.map(item => ({
+      id: item.metadata.id,
+      name: item.metadata.name,
+      sourceType: item.metadata.sourceType || (item.elements?.length > 0 ? 'manual' : 'ai'),
+      data: { 
+        elements: item.elements || [], 
+        constraints: item.constraints || [] 
+      },
+      createdAt: item.metadata.createdAt,
+      updatedAt: item.metadata.updatedAt,
+      isLocal: true
+    }));
+
+    // Merge and remove duplicates (prefer backend if same ID, though local IDs are unique-ish)
+    const all = [...backendDesigns];
+    localDesigns.forEach(ld => {
+      if (!all.find(bd => bd.id === ld.id)) {
+        all.push(ld);
+      }
+    });
+
+    // Sort by updated date
+    all.sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
+
+    console.log(`[DESIGNS] Total merged designs: ${all.length}`);
+    return all;
+  },
+
+  async delete(id: string): Promise<void> {
+    console.log('[DESIGNS] Deleting design:', id);
+    deleteFromCollection(id);
+    try {
+      await fetch(`${API_BASE}/api/design/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      console.warn('[DESIGNS] Backend delete failed or not implemented');
     }
   }
 };

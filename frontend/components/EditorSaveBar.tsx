@@ -11,6 +11,7 @@ import {
 interface EditorSaveBarProps {
   getState: () => EditorSaveState;
   onLoad: (state: EditorSaveState) => void;
+  onSave?: () => void;
   designName?: string;
   onNameChange?: (name: string) => void;
 }
@@ -18,6 +19,7 @@ interface EditorSaveBarProps {
 export default function EditorSaveBar({
   getState,
   onLoad,
+  onSave,
   designName = 'Untitled Design',
   onNameChange,
 }: EditorSaveBarProps) {
@@ -35,10 +37,16 @@ export default function EditorSaveBar({
   const handleSave = useCallback(() => {
     const state = getState();
     saveToLocalStorage(state);
+    
+    // If onSave (backend/collection save) is provided, use it
+    if (onSave) {
+      onSave();
+    }
+    
     const time = new Date().toLocaleTimeString();
     setLastSaved(time);
     showToast(`Design saved at ${time}`);
-  }, [getState]);
+  }, [getState, onSave]);
 
   const handleLoad = useCallback(() => {
     const state = loadFromLocalStorage();

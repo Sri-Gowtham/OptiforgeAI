@@ -23,6 +23,7 @@ export default function EditorPage() {
   const store = useEditorStore()
   const { state, setTool, undo, redo, loadAIDesign, canUndo, canRedo } = store
 
+  const [projectId, setProjectId] = useState<string | null>(null)
   const [projectName, setProjectName] = useState('Untitled Design')
   const [saving, setSaving] = useState(false)
   const [loadingProject, setLoadingProject] = useState(false)
@@ -32,6 +33,7 @@ export default function EditorPage() {
 
   const getEditorState = useCallback((): EditorSaveState => ({
     metadata: {
+      id: projectId || `local-${Date.now()}`,
       name: projectName,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -44,7 +46,7 @@ export default function EditorPage() {
     dimensions: [],
     zoom: state.zoom || 1,
     pan: state.offset || { x: 0, y: 0 },
-  }), [projectName, state.elements, state.layers, state.constraints, state.zoom, state.offset]);
+  }), [projectId, projectName, state.elements, state.layers, state.constraints, state.zoom, state.offset]);
 
   useAutosave(getEditorState);
 
@@ -53,7 +55,8 @@ export default function EditorPage() {
     if (typeof s.zoom === 'number') setZoom(s.zoom);
     if (s.pan) setOffset(s.pan);
     if (s.metadata?.name) setProjectName(s.metadata.name);
-  }, [loadAIDesign, setZoom, setOffset, setProjectName]);
+    if (s.metadata?.id) setProjectId(s.metadata.id);
+  }, [loadAIDesign, setZoom, setOffset, setProjectName, setProjectId]);
 
 
   // Auth guard
@@ -71,7 +74,17 @@ export default function EditorPage() {
       
       designAPI.getById(designId)
         .then(design => {
-          console.log('[Editor] Backend design loaded successfully');
+          const type = design.sourceType || (design.data?.elements?.length > 0 ? 'manual' : 'ai');
+          console.log('[EDITOR LOAD] Design data received:', { id: design.id, type, elements: design.data?.elements?.length });
+
+          if (type === 'ai' && (!design.data?.elements || design.data.elements.length === 0)) {
+            console.error('[EDITOR LOAD] Rejecting AI project in CAD editor');
+            setProjectError('Project is not a CAD editor project. AI designs should be viewed in the Design Viewer.');
+            return;
+          }
+
+          console.log('[Editor] Design loaded successfully', design.id);
+          setProjectId(design.id);
           setProjectName(design.name)
           loadAIDesign(design.data.elements, design.data.constraints)
         })
@@ -121,11 +134,21 @@ export default function EditorPage() {
   }, [loadAIDesign])
 
   async function handleSave() {
+    console.log('[SAVE] Initiating manual save...', { projectId, projectName });
     setSaving(true)
     try {
-      await designAPI.save(projectName, state.elements, state.constraints)
+      const saved = await designAPI.save(projectName, state.elements, state.constraints, projectId || undefined)
+      if (saved && saved.id) {
+        setProjectId(saved.id);
+        // Update URL without refresh to include ID if it's new
+        if (!searchParams.get('id')) {
+          const newUrl = window.location.pathname + '?id=' + saved.id;
+          window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
+        }
+      }
       alert('Design saved successfully!')
     } catch (err) {
+      console.error('[SAVE] Error:', err);
       alert('Failed to save design')
     } finally {
       setSaving(false)
@@ -157,16 +180,76 @@ export default function EditorPage() {
 
   // Export SVG
   function exportSVG() {
-    const svgEl = document.getElementById('editor-svg')
-    if (!svgEl) return
-    const svgContent = new XMLSerializer().serializeToString(svgEl)
-    const blob = new Blob([svgContent], { type: 'image/svg+xml' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${projectName.replace(/\s+/g, '_')}.svg`
-    a.click()
-    URL.revokeObjectURL(url)
+    console.log('[SVG EXPORT] Starting export...');
+    const geometry = getGeometry(state);
+    if (geometry.length === 0) {
+      console.warn('[SVG EXPORT] Empty geometry');
+      alert('No elements to export');
+      return;
+    }
+
+    // Find bounds for viewBox
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    geometry.forEach(el => {
+      if (el.type === 'line' || el.type === 'dimension') {
+        minX = Math.min(minX, el.x1!, el.x2!); maxX = Math.max(maxX, el.x1!, el.x2!);
+        minY = Math.min(minY, el.y1!, el.y2!); maxY = Math.max(maxY, el.y1!, el.y2!);
+      } else if (el.type === 'rect') {
+        minX = Math.min(minX, el.x!); maxX = Math.max(maxX, el.x! + el.width!);
+        minY = Math.min(minY, el.y!); maxY = Math.max(maxY, el.y! + el.height!);
+      } else if (el.type === 'circle' || el.type === 'arc') {
+        minX = Math.min(minX, el.cx! - el.r!); maxX = Math.max(maxX, el.cx! + el.r!);
+        minY = Math.min(minY, el.cy! - el.r!); maxY = Math.max(maxY, el.cy! + el.r!);
+      }
+    });
+
+    const padding = 20;
+    const width = (maxX - minX) + padding * 2;
+    const height = (maxY - minY) + padding * 2;
+    const vbX = minX - padding;
+    const vbY = minY - padding;
+
+    let svgLines = [];
+    svgLines.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${vbX} ${vbY} ${width} ${height}">`);
+    svgLines.push(`  <rect x="${vbX}" y="${vbY}" width="${width}" height="${height}" fill="#0a0a0f" />`);
+    
+    geometry.forEach(el => {
+      if (el.type === 'line') {
+        svgLines.push(`  <line x1="${el.x1}" y1="${el.y1}" x2="${el.x2}" y2="${el.y2}" stroke="#6366f1" stroke-width="1.5" />`);
+      } else if (el.type === 'rect') {
+        svgLines.push(`  <rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" fill="none" stroke="#6366f1" stroke-width="1.5" />`);
+      } else if (el.type === 'circle') {
+        svgLines.push(`  <circle cx="${el.cx}" cy="${el.cy}" r="${el.r}" fill="none" stroke="#6366f1" stroke-width="1.5" />`);
+      } else if (el.type === 'arc') {
+        const s = (a: number) => ({ x: el.cx! + el.r! * Math.cos(a), y: el.cy! + el.r! * Math.sin(a) });
+        const start = s(el.startAngle!);
+        const end = s(el.endAngle!);
+        const largeArc = (el.endAngle! - el.startAngle!) > Math.PI ? 1 : 0;
+        const d = `M ${start.x} ${start.y} A ${el.r} ${el.r} 0 ${largeArc} 1 ${end.x} ${end.y}`;
+        svgLines.push(`  <path d="${d}" fill="none" stroke="#6366f1" stroke-width="1.5" />`);
+      } else if (el.type === 'dimension') {
+        svgLines.push(`  <line x1="${el.x1}" y1="${el.y1}" x2="${el.x2}" y2="${el.y2}" stroke="#facc15" stroke-width="1" stroke-dasharray="2,2" />`);
+        svgLines.push(`  <text x="${(el.x1! + el.x2!) / 2}" y="${(el.y1! + el.y2!) / 2 - 5}" fill="#facc15" font-size="10" font-family="monospace" text-anchor="middle">${el.label}</text>`);
+      }
+    });
+
+    svgLines.push('</svg>');
+    const svgString = svgLines.join('\n');
+    const blob = new Blob([svgString], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projectName.replace(/\s+/g, '_')}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    console.log('[SVG EXPORT] Export complete', { 
+      elements: geometry.length, 
+      svgLength: svgString.length, 
+      blobSize: blob.size 
+    });
   }
 
   async function downloadDXF() {
@@ -218,6 +301,7 @@ export default function EditorPage() {
           <EditorSaveBar
             getState={getEditorState}
             onLoad={handleLoadState}
+            onSave={handleSave}
             designName={projectName}
             onNameChange={setProjectName}
           />

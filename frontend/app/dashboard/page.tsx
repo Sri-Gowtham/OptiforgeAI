@@ -78,8 +78,9 @@ function ProjectCard({ project }: { project: Project }) {
   return (
     <div 
       onClick={() => {
-        console.log(`[Dashboard] Opening project: ${project.id}`);
-        router.push(`/editor?id=${project.id}`);
+        const path = project.sourceType === 'ai' ? `/designs/${project.id}` : `/editor?id=${project.id}`;
+        console.log('[ROUTING] Dashboard click:', path, 'Source Type:', project.sourceType);
+        router.push(path);
       }}
       className="bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl p-5 hover:bg-gray-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-600/20"
     >

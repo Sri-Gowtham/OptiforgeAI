@@ -303,8 +303,9 @@ export default function ProjectsPage() {
                 <div
                   key={p.id}
                   onClick={() => {
-                    console.log(`[Projects] Opening project: ${p.id}`);
-                    router.push(`/editor?id=${p.id}`);
+                    const path = p.sourceType === 'ai' ? `/designs/${p.id}` : `/editor?id=${p.id}`;
+                    console.log('[ROUTING] Projects click:', path, 'Source Type:', p.sourceType);
+                    router.push(path);
                   }}
                   className="group relative bg-white dark:bg-white/[0.03] backdrop-blur border border-gray-200 dark:border-white/[0.08] hover:border-indigo-600/40 rounded-xl p-5 transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-600/20 hover:-translate-y-1"
                 >
@@ -356,8 +357,9 @@ export default function ProjectsPage() {
                 <div
                   key={p.id}
                   onClick={() => {
-                    console.log(`[Projects] Opening project: ${p.id}`);
-                    router.push(`/editor?id=${p.id}`);
+                    const path = p.sourceType === 'ai' ? `/designs/${p.id}` : `/editor?id=${p.id}`;
+                    console.log('[ROUTING] Projects click:', path, 'Source Type:', p.sourceType);
+                    router.push(path);
                   }}
                   className="group relative bg-white dark:bg-white/[0.03] backdrop-blur border border-gray-200 dark:border-white/[0.08] hover:border-indigo-600/40 rounded-xl p-4 transition-all cursor-pointer hover:shadow-lg hover:shadow-indigo-600/20"
                 >

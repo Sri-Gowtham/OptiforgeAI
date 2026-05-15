@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 const STORAGE_KEY = 'optiforge-editor-save';
+const COLLECTION_KEY = 'optiforge_saved_designs';
 const AUTOSAVE_INTERVAL = 10000;
 
 export interface EditorMetadata {
+  id: string;
   name: string;
+  sourceType: 'manual' | 'ai';
   createdAt: string;
   updatedAt: string;
   version: string;
@@ -25,15 +28,21 @@ export function safeParseEditorState(raw: string): EditorSaveState | null {
   try {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
+    const elements = Array.isArray(parsed.elements) ? parsed.elements : [];
+    const sourceType = parsed.metadata?.sourceType || 
+                       (elements.length > 0 ? 'manual' : 'ai');
+
     return {
       metadata: {
+        id: parsed.metadata?.id || (parsed.id ?? `local-${Date.now()}`),
         name: parsed.metadata?.name || 'Untitled Design',
+        sourceType: sourceType,
         createdAt: parsed.metadata?.createdAt || new Date().toISOString(),
         updatedAt: parsed.metadata?.updatedAt || new Date().toISOString(),
         version: parsed.metadata?.version || '1.0',
         designType: parsed.metadata?.designType || 'general',
       },
-      elements: Array.isArray(parsed.elements) ? parsed.elements : [],
+      elements: elements,
       layers: Array.isArray(parsed.layers) ? parsed.layers : [],
       constraints: Array.isArray(parsed.constraints) ? parsed.constraints : [],
       dimensions: Array.isArray(parsed.dimensions) ? parsed.dimensions : [],
@@ -68,6 +77,70 @@ export function loadFromLocalStorage(): EditorSaveState | null {
   } catch (err) {
     console.error('Load from localStorage failed:', err);
     return null;
+  }
+}
+
+export function saveToCollection(state: EditorSaveState): void {
+  try {
+    console.log('[LOCAL STORAGE] Saving to collection:', state.metadata.id);
+    const raw = localStorage.getItem(COLLECTION_KEY);
+    let collection: EditorSaveState[] = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) collection = parsed;
+      } catch (e) {
+        console.warn('[LOCAL STORAGE] Collection parse failed, reset');
+      }
+    }
+
+    const payload: EditorSaveState = {
+      ...state,
+      metadata: { ...state.metadata, updatedAt: new Date().toISOString() },
+    };
+
+    const index = collection.findIndex(i => i.metadata.id === payload.metadata.id);
+    if (index >= 0) {
+      collection[index] = payload;
+    } else {
+      collection.unshift(payload);
+    }
+
+    localStorage.setItem(COLLECTION_KEY, JSON.stringify(collection));
+    console.log('[LOCAL STORAGE] Collection updated, count:', collection.length);
+  } catch (err) {
+    console.error('Save to collection failed:', err);
+  }
+}
+
+export function loadCollection(): EditorSaveState[] {
+  try {
+    console.log('[LOCAL STORAGE] Loading collection');
+    const raw = localStorage.getItem(COLLECTION_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    
+    // Return typed states
+    return parsed.map(item => safeParseEditorState(JSON.stringify(item))).filter(Boolean) as EditorSaveState[];
+  } catch (err) {
+    console.error('Load collection failed:', err);
+    return [];
+  }
+}
+
+export function deleteFromCollection(id: string): void {
+  try {
+    const raw = localStorage.getItem(COLLECTION_KEY);
+    if (!raw) return;
+    const collection: EditorSaveState[] = JSON.parse(raw);
+    if (!Array.isArray(collection)) return;
+    
+    const filtered = collection.filter(i => (i.metadata?.id || (i as any).id) !== id);
+    localStorage.setItem(COLLECTION_KEY, JSON.stringify(filtered));
+    console.log('[LOCAL STORAGE] Deleted from collection:', id);
+  } catch (err) {
+    console.error('Delete from collection failed:', err);
   }
 }
 

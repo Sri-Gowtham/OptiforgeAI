@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
-import { analysisAPI, projectsAPI, type DesignResult, type Project } from '@/lib/api'
+import { analysisAPI, projectsAPI, designAPI, type DesignResult, type Project } from '@/lib/api'
 import Sidebar from '@/components/Sidebar'
 import {
   Sparkles,
@@ -19,6 +19,7 @@ import {
   Edit3,
   Check,
   X,
+  FileText,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -155,8 +156,16 @@ export default function CreatePage() {
         // Save to existing project (in a real app)
         toast.success('Saved to project')
       } else if (projectName.trim()) {
-        await projectsAPI.create(projectName.trim(), `${designType} design — ${prompt.slice(0, 100)}`)
-        toast.success('Project created and saved')
+        console.log('[AI SAVE] Saving AI design as project:', projectName);
+        const cad = result.cadGeometry || { elements: [], constraints: [] };
+        await designAPI.save(
+          projectName.trim(), 
+          cad.elements || [], 
+          cad.constraints || [], 
+          undefined, 
+          'ai'
+        );
+        toast.success('AI design saved to collection');
       } else {
         toast.error('Enter a project name')
         setSaving(false)
@@ -486,60 +495,107 @@ export default function CreatePage() {
 
                 {/* Components */}
                 <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
-                  <label className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-6 block">
-                    Components
-                  </label>
-                  <div className="space-y-0 rounded-lg overflow-hidden border border-white/[0.06]">
-                    {result.components.map((c: string, i: number) => (
-                      <div
-                        key={i}
-                        className={`px-4 py-3 text-sm text-white/70 ${
-                          i % 2 === 0 ? 'bg-white/[0.02]' : 'bg-white/[0.04]'
-                        } ${i < result.components.length - 1 ? 'border-b border-white/[0.06]' : ''}`}
-                      >
-                        {c}
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between mb-6">
+                    <label className="text-white/60 text-xs font-semibold uppercase tracking-widest block">
+                      Components & Parts
+                    </label>
+                    <span className="text-[10px] text-indigo-400 font-mono">BOM v1.0</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-white/[0.06] text-white/40">
+                          <th className="pb-3 pr-4 font-medium">NAME</th>
+                          <th className="pb-3 pr-4 font-medium">QTY</th>
+                          <th className="pb-3 pr-4 font-medium">MATERIAL</th>
+                          <th className="pb-3 font-medium">ROLE</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {result.components.length > 0 ? (
+                          result.components.map((c: any, i: number) => (
+                            <tr key={i} className="group hover:bg-white/[0.02] transition-colors">
+                              <td className="py-3 pr-4 font-medium text-white/80">{c.name}</td>
+                              <td className="py-3 pr-4 text-white/60">{c.quantity}</td>
+                              <td className="py-3 pr-4 text-indigo-300/70">{c.material}</td>
+                              <td className="py-3 text-white/40 italic">{c.role}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="py-8 text-center text-white/20 italic">No component data generated.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
 
               {/* Manufacturing Steps */}
               <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
-                <label className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-6 block">
-                  Manufacturing Steps
+                <label className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-8 block">
+                  Manufacturing & Assembly Workflow
                 </label>
-                <div className="relative pl-8 space-y-6">
-                  <div className="absolute left-2 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-600 to-indigo-600/20 rounded-full" />
-                  {result.manufacturingSteps.map((step: string, i: number) => (
-                    <div key={i} className="flex gap-4">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600/30 text-indigo-400 text-xs font-bold shrink-0 mt-1 relative z-10">
-                        {i + 1}
+                <div className="relative pl-8 space-y-8">
+                  <div className="absolute left-2.5 top-0 bottom-0 w-[1px] bg-white/[0.06]" />
+                  {result.manufacturingSteps.length > 0 ? (
+                    result.manufacturingSteps.map((step: string, i: number) => (
+                      <div key={i} className="relative group">
+                        <div className="absolute -left-8 top-1 flex items-center justify-center w-5 h-5 rounded-full bg-[#0a0a0f] border border-indigo-500/30 text-indigo-400 text-[10px] font-bold z-10 group-hover:border-indigo-500 group-hover:shadow-[0_0_10px_rgba(99,102,241,0.2)] transition-all">
+                          {i + 1}
+                        </div>
+                        <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-4 group-hover:border-white/[0.1] transition-all">
+                          <p className="text-white/70 text-sm leading-relaxed">{step}</p>
+                        </div>
                       </div>
-                      <p className="text-white/60 text-sm leading-relaxed pt-1">{step}</p>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <div className="text-white/30 text-sm italic py-4">No manufacturing sequence provided.</div>
+                  )}
                 </div>
               </div>
 
-              {/* Safety Card */}
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 flex gap-4">
-                <div className="flex-shrink-0 pt-1">
-                  <AlertTriangle size={20} className="text-amber-400" />
+              {/* Safety & Considerations */}
+              <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <AlertTriangle size={18} className="text-amber-500" />
+                  <label className="text-white/60 text-xs font-semibold uppercase tracking-widest block">
+                    Engineering Safety Standards
+                  </label>
                 </div>
-                <div>
-                  <h4 className="text-amber-300 font-semibold text-sm mb-2">Safety Considerations</h4>
-                  <p className="text-amber-200/60 text-sm leading-relaxed">{result.safetyNotes}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {result.safetyConsiderations?.length > 0 ? (
+                    result.safetyConsiderations.map((note: string, i: number) => (
+                      <div key={i} className="bg-amber-500/[0.03] border border-amber-500/10 rounded-xl p-4 flex gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500/40 mt-1.5 shrink-0" />
+                        <p className="text-amber-200/60 text-xs leading-relaxed">{note}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-2 bg-amber-500/[0.02] border border-amber-500/10 rounded-xl p-6 text-center text-amber-200/30 text-sm italic">
+                      No specific safety considerations flagged for this design.
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Design Notes */}
-              <div className="bg-white/[0.02] border border-white/[0.08] rounded-2xl p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-2xl">📝</span>
-                  <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">Design Notes</label>
+              <div className="bg-indigo-600/[0.03] border border-indigo-600/10 rounded-2xl p-6 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/5 blur-3xl -mr-16 -mt-16 group-hover:bg-indigo-600/10 transition-all" />
+                <div className="flex items-center gap-2 mb-4 relative z-10">
+                  <div className="p-1.5 rounded-md bg-indigo-600/20 text-indigo-400">
+                    <FileText size={14} />
+                  </div>
+                  <label className="text-white/60 text-xs font-semibold uppercase tracking-widest">
+                    AI Engineering Logic
+                  </label>
                 </div>
-                <p className="text-white/60 text-sm leading-relaxed">{result.designNotes}</p>
+                <div className="relative z-10">
+                  <p className="text-white/50 text-sm leading-relaxed font-mono selection:bg-indigo-500/30">
+                    {result.designNotes || "No design notes provided."}
+                  </p>
+                </div>
               </div>
 
               {/* AI Chat Addon */}

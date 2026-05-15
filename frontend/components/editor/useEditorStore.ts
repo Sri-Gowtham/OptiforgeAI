@@ -325,8 +325,12 @@ function reducer(state: EditorState, action: Action): EditorState {
     }
 
     case 'LOAD_AI_DESIGN': {
+      console.log('[AI LOAD] Reducer processing elements:', action.elements?.length);
       // Auto center
-      if (action.elements.length === 0) return { ...state, elements: [], constraints: [] }
+      if (!action.elements || action.elements.length === 0) {
+        console.warn('[AI LOAD] Empty geometry received, resetting state');
+        return { ...state, elements: [], constraints: [] }
+      }
       
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
       action.elements.forEach(el => {
@@ -405,8 +409,10 @@ export function useEditorStore() {
   const redo = useCallback(() => dispatch({ type: 'REDO' }), [])
   const resetView = useCallback(() => dispatch({ type: 'RESET_VIEW' }), [])
   const addConstraint = useCallback((constraint: Constraint) => dispatch({ type: 'ADD_CONSTRAINT', constraint }), [])
-  const loadAIDesign = useCallback((elements: DrawElement[], constraints: Constraint[]) => 
-    dispatch({ type: 'LOAD_AI_DESIGN', elements, constraints }), [])
+  const loadAIDesign = useCallback((elements: DrawElement[], constraints: Constraint[]) => {
+    console.log('[AI LOAD] Hook called with elements:', elements?.length);
+    dispatch({ type: 'LOAD_AI_DESIGN', elements, constraints });
+  }, [])
 
   const canUndo = state.historyIndex > 0
   const canRedo = state.historyIndex < state.history.length - 1
