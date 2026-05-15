@@ -324,63 +324,365 @@ ${border}${floorPlan}${side}${topView}${tb}
 }
 
 
+// ── Optimizer Logic ──────────────────────────────────────────────────────────
+export function detectMaterial(text: string) {
+  if (!text) return "unknown";
+  if (/steel|ss|stainless/i.test(text)) return "steel";
+  if (/aluminum|aluminium/i.test(text)) return "aluminum";
+  if (/plastic|abs|polymer/i.test(text)) return "plastic";
+  return "unknown";
+}
+
+export function detectLoad(text: string) {
+  if (!text) return null;
+  const match = text.match(/(\d+)\s*(kg|tons|ton)/i);
+  if (!match) return null;
+  const value = parseInt(match[1]);
+  const unit = match[2].toLowerCase();
+  return unit.startsWith("ton") ? value * 1000 : value;
+}
+
+export function detectThickness(text: string) {
+  if (!text) return null;
+  const match = text.match(/(\d+(\.\d+)?)\s*mm/i);
+  return match ? parseFloat(match[1]) : null;
+}
+
+export function detectComplexity(text: string) {
+  if (!text) return 0;
+  const keywords = ["holes", "slots", "threads", "welded", "assembly", "fasteners", "multi-part"];
+  let score = 0;
+  for (const k of keywords) {
+    if (new RegExp(k, "i").test(text)) score++;
+  }
+  return score;
+}
+
+export function calculateEngineeringScore(input: string) {
+  let score = 85;
+
+  const material = detectMaterial(input);
+  const load = detectLoad(input);
+  const thickness = detectThickness(input);
+  const complexity = detectComplexity(input);
+
+  if (material === "aluminum" && load && load > 200) score -= 25;
+  if (material === "plastic" && load && load > 50) score -= 35;
+
+  if (thickness && load) {
+    if (thickness < 5 && load > 100) score -= 30;
+    if (thickness < 3 && load > 50) score -= 40;
+  }
+
+  score -= complexity * 5;
+
+  if (score > 100) score = 100;
+  if (score < 0) score = 0;
+
+  return Math.round(score);
+}
+
+export function generateEngineeringSuggestions(input: string) {
+  const suggestions: any[] = [];
+
+  const material = detectMaterial(input);
+  const load = detectLoad(input);
+  const thickness = detectThickness(input);
+  const complexity = detectComplexity(input);
+
+  if (material === "aluminum" && load && load > 200) {
+    suggestions.push({
+      title: "Material Strength Insufficient",
+      description: "Aluminum may deform under high load conditions.",
+      severity: "HIGH",
+      impact: "Structural failure risk",
+      source: "DFM_ENGINE"
+    });
+  }
+
+  if (thickness && load && thickness < 5 && load > 100) {
+    suggestions.push({
+      title: "Insufficient Thickness",
+      description: "Thickness is too low for applied load.",
+      severity: "HIGH",
+      impact: "Bending and fatigue risk",
+      source: "STRUCTURAL_ENGINE"
+    });
+  }
+
+  if (complexity > 3) {
+    suggestions.push({
+      title: "High Manufacturing Complexity",
+      description: "Too many features increase cost and machining time.",
+      severity: "MEDIUM",
+      impact: "Higher production cost",
+      source: "DFM_ENGINE"
+    });
+  }
+
+  return suggestions;
+}
+
 export class AIService {
   private groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
 
-  private generateEngineeringSVG(type: 'mechanical'|'architectural', d: DesignData, geo: Geometry): string {
-    return type === 'architectural' ? architecturalSVG(d) : mechanicalSVG(d, geo);
-  }
-
-  // ── detectPartType ─────────────────────────────────────────────────────────
-  detectPartType(prompt: string): 'bracket'|'gear'|'shaft'|'frame'|'enclosure'|'assembly'|'generic' {
+  private detectPartType(prompt: string): string {
     const p = prompt.toLowerCase();
-    if (p.includes('bracket') || p.includes('mount') || p.includes('clamp'))   return 'bracket';
-    if (p.includes('gear')    || p.includes('sprocket') || p.includes('pinion')) return 'gear';
-    if (p.includes('shaft')   || p.includes('axle')     || p.includes('spindle')) return 'shaft';
-    if (p.includes('frame')   || p.includes('chassis')  || p.includes('skeleton')) return 'frame';
-    if (p.includes('enclosure') || p.includes('housing') || p.includes('casing')) return 'enclosure';
-    if (p.includes('assembly') || p.includes('subassembly') || p.includes('kit')) return 'assembly';
-    return 'generic';
+    if (p.match(/\b(bracket|mount|clamp|flange|plate|angle)\b/)) return 'bracket';
+    if (p.match(/\b(gear|sprocket|pinion|rack|worm|tooth|teeth)\b/)) return 'gear';
+    if (p.match(/\b(shaft|axle|spindle|rod|pin|bar)\b/)) return 'shaft';
+    if (p.match(/\b(enclosure|housing|box|cabinet|casing|cover)\b/)) return 'enclosure';
+    if (p.match(/\b(frame|chassis|structure|skeleton|truss|beam)\b/)) return 'frame';
+    if (p.match(/\b(assembly|exploded|sub-assembly|mechanism)\b/)) return 'assembly';
+    if (p.includes('pipe') || p.includes('tube') || p.includes('fitting') || p.includes('elbow') || p.includes('tee') || p.includes('coupling')) return 'pipe';
+    if (p.includes('pulley') || p.includes('belt') || p.includes('wheel') || p.includes('disk') || p.includes('disc') || p.includes('flywheel')) return 'pulley';
+    return 'general';
   }
 
-  // ── generateMechanicalSVG (Groq → fallback) ────────────────────────────────
-  async generateMechanicalSVG(prompt: string, d: DesignData, geo: Geometry): Promise<string> {
-    const partType = this.detectPartType(prompt);
-    const systemPrompt = `You are a CAD drafting engine. Output ONLY a valid, complete SVG string (no markdown, no explanation).
-Produce an engineering-quality orthographic drawing of a ${partType} mechanical component.
-The SVG must include:
-- Outer border rectangle with fill:#f8f9fc
-- Front view, Side view, Top view (labeled)
-- Hidden lines as stroke-dasharray="6,4" stroke="#888"
-- Center lines as stroke-dasharray="12,3,2,3" stroke="#cc2222"
-- Dimension annotations with arrowheads (width=${d.width}mm, height=${d.height}mm, depth=${d.depth}mm)
-- A title block with: TITLE=${d.title}, MATERIAL=${d.material}, SCALE=${geo.scale}, DATE=${new Date().toLocaleDateString('en-GB')}, DRAWN BY=OptiForge AI
-- SVG dimensions: width="1080" height="780"
-Output only the raw SVG string starting with <svg`;
+  private getPartTemplate(partType: string, dims: string, material: string): string {
+    const templates: Record<string, string> = {
+      bracket: `DRAW AN L-SHAPED BRACKET:
+- Horizontal base flange: rect width=160 height=18 at center-left
+- Vertical web: rect width=18 height=110 from left end of base upward
+- Gusset/rib: diagonal line from base-web inner corner at 45deg, length 40px
+- 4 mounting holes on base flange: circles r=5 evenly spaced
+- 2 mounting holes on vertical web: circles r=5
+- Inner corner fillet: small arc at base-web junction
+- Section hatching on cut surfaces at 45deg
+- Weld symbol (zigzag) at base-web junction`,
+
+      gear: `DRAW A SPUR GEAR FRONT VIEW:
+- Addendum circle (outer): r=90 dashed reference line
+- Pitch circle: r=75 dash-dot RED center line  
+- Root circle (inner): r=60 solid
+- Center bore: r=14 solid
+- Keyway: rect width=7 height=16 at bore top
+- Draw 18 gear teeth as small trapezoids around the pitch circle perimeter using path
+- 4 lightening holes: r=10 circles at 90deg intervals on r=40 PCD
+- Spoke lines connecting hub to rim at 90deg intervals`,
+
+      shaft: `DRAW A STEPPED SHAFT SIDE VIEW:
+- Step 1 (left, largest dia): rect width=70 height=56 
+- Step 2 (middle): rect width=120 height=44
+- Step 3 (right, smallest): rect width=90 height=32
+- Full-length horizontal center line (RED dash-dot)
+- Thread indication on right end: 8 parallel diagonal lines spaced 3px
+- Keyway slot cut into top of step 2: rect width=40 height=8
+- Chamfer (45deg line) at all diameter transitions and ends
+- Circular cross-section indication marks at each step`,
+
+      enclosure: `DRAW A SHEET METAL ENCLOSURE:
+- Front face: rect width=200 height=150 stroke-width=2
+- Top face isometric: parallelogram 40px offset up-right
+- Right side face: parallelogram 40px offset down-right
+- Bend lines on front face edges: dashed lines stroke-dasharray=6,3
+- 6 ventilation slots on front face: small rects width=4 height=20
+- 4 corner mounting bosses: circles r=6 with center crosses
+- Cable entry knockout: circle r=12 with breakout lines
+- Lid separation line: dashed line at y=50 on front face`,
+
+      frame: `DRAW A STRUCTURAL WELDMENT FRAME:
+- Outer rectangle: width=260 height=160 stroke-width=3
+- Two internal cross-members: horizontal lines at 1/3 and 2/3 height
+- One vertical center member
+- Corner gusset plates: triangles at all 4 inner corners (base=30 height=30)
+- Bolt holes at each gusset: circles r=5
+- Weld symbols at all member intersections
+- Section callout arrows A-A on left side
+- Tube profile indication at corners: small square inside corner rects`,
+
+      assembly: `DRAW AN EXPLODED ASSEMBLY VIEW:
+- Base plate at bottom: rect width=200 height=20
+- Main body component center: rect width=120 height=80 above base
+- Cover/cap on top: rect width=130 height=15
+- Vertical explosion lines connecting parts (thin dashed)
+- 4 fasteners (bolts): small hexagons on explosion lines with shaft lines
+- Part callout balloons: circles r=10 with leader lines, numbers 1-4
+- Assembly direction arrows on explosion lines
+- Datum reference triangle at base`,
+
+      pipe: `DRAW A PIPE FITTING:
+- Main pipe body: two parallel horizontal lines width=200 gap=30
+- Pipe end caps: vertical lines at both ends
+- Flange at left end: rect width=12 height=50 centered on pipe
+- Bolt holes in flange: 4 circles r=4
+- Flow direction arrow inside pipe centerline
+- Wall thickness indication: dimension showing gap between lines
+- Thread runout lines at right end: angled parallel lines`,
+
+      pulley: `DRAW A V-BELT PULLEY:
+- Outer rim circle: r=85
+- Hub circle: r=20
+- 4 spokes: lines from hub to rim at 45,135,225,315 degrees
+- V-groove profile on rim: angled lines showing belt groove cross-section
+- Keyway in bore: rect width=6 height=14
+- Center line cross (RED): horizontal and vertical dash-dot lines
+- Web/disk between hub and rim: light fill circle r=55`,
+
+      general: `DRAW A MACHINED MECHANICAL COMPONENT:
+- Main body profile: complex polygon with at least 8 vertices showing stepped/profiled shape
+- Bore or through-hole: circle with center lines
+- Multiple machined faces with surface roughness symbols
+- At least 2 tapped holes: circles with thread indication lines
+- Fillet radii at corners: small arcs
+- Datum reference features marked with triangles A, B, C`,
+    };
+    return templates[partType] || templates.general;
+  }
+
+  private async generateMechanicalSVG(
+    prompt: string,
+    spec: any,
+    partType: string
+  ): Promise<string> {
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) return this.getFallbackSVG(prompt, spec);
+
+    const dims = spec.specifications?.dimensions || '100x50x25mm';
+    const material = Array.isArray(spec.specifications?.materials)
+      ? spec.specifications.materials[0]
+      : (spec.specifications?.materials || 'Steel');
+    const seed = Date.now();
+    const drgNo = `OPT-${seed % 9000 + 1000}`;
+    const template = this.getPartTemplate(partType, dims, material);
+
+    const systemMsg = `You are an ISO mechanical engineering CAD drawing system.
+Output ONLY valid SVG markup. Start with <svg. End with </svg>.
+No explanation. No markdown. No code blocks. Raw SVG only.`;
+
+    const userMsg = `Generate an ISO standard mechanical engineering drawing SVG.
+Part: "${prompt}"
+Part type: ${partType}
+Dimensions: ${dims}
+Material: ${material}
+Drawing number: ${drgNo}
+Unique seed: ${seed}
+
+GEOMETRY INSTRUCTIONS:
+${template}
+
+MANDATORY SVG STRUCTURE:
+viewBox="0 0 520 400" xmlns="http://www.w3.org/2000/svg"
+
+Layer 1 — Sheet background:
+<rect width="520" height="400" fill="#f4f4f0"/>
+<rect x="5" y="5" width="510" height="390" fill="none" stroke="#222" stroke-width="2.5"/>
+<rect x="10" y="10" width="500" height="380" fill="none" stroke="#222" stroke-width="0.5"/>
+
+Layer 2 — Drawing content (centered in area x=10,y=10 to x=400,y=310):
+Draw the part geometry here using template instructions above.
+Translate/position part to center of drawing area (cx≈210, cy≈160).
+Main outlines: stroke="#1a1a2e" stroke-width="2" fill="none"
+Hidden lines: stroke="#555555" stroke-width="0.8" stroke-dasharray="8,3"
+Center lines: stroke="#cc0000" stroke-width="0.7" stroke-dasharray="14,4,2,4"
+Section hatching: thin lines at 45deg stroke="#444" stroke-width="0.5" spacing=4px
+Dimension lines: stroke="#0055aa" stroke-width="0.7"
+
+Layer 3 — Dimension annotations (outside part boundary, at least 6):
+Dimension line format: line with arrow paths at ends, value text above line
+Arrow format: small triangle path filled "#0055aa"
+Include: overall width, overall height, hole diameters, key feature dims
+Use actual values from dimensions: ${dims}
+
+Layer 4 — Engineering symbols:
+Surface roughness: √ symbol with Ra value on machined faces
+Datum triangles: filled triangles labeled A, B on primary reference datums
+Geometric tolerance: small rectangle with symbols if applicable
+
+Layer 5 — Notes box (top-right quadrant x=405,y=15 width=110 height=120):
+<rect x="405" y="15" width="110" height="120" fill="white" stroke="#222" stroke-width="0.8"/>
+Add horizontal dividers every 20px
+Notes text lines (font-size=8, font-family=Arial):
+Line 1: "MATERIAL: ${material}"
+Line 2: "TOLERANCE: ±0.1"
+Line 3: "FINISH: Ra 1.6"
+Line 4: "PROJECTION: ⊕"
+Line 5: "SCALE: 1:1"
+Line 6: "STANDARD: ISO 128"
+
+Layer 6 — Title block (bottom strip y=315 to y=395):
+<rect x="5" y="315" width="510" height="80" fill="white" stroke="#222" stroke-width="1"/>
+Vertical dividers at x=180, x=350, x=440
+Horizontal divider at y=350
+Cell labels: PART NAME, MATERIAL, DRAWN BY, DATE, DRG NO, SCALE, SHEET
+Cell values: "${prompt.substring(0, 25)}", "${material}", "OptiForge AI", "2026", "${drgNo}", "1:1", "1/1"
+Title text font-size=9 font-family=Arial fill=#1a1a2e
+
+Total SVG elements: minimum 30. No generic rectangles. Actual part geometry only.`;
 
     try {
-      const completion = await this.groq.chat.completions.create({
-        model: 'llama3-8b-8192',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: `Generate orthographic engineering drawing for: ${prompt}` },
-        ],
-        max_tokens: 3000,
-        temperature: 0.1,
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          max_tokens: 4096,
+          temperature: 0.8,
+          seed: seed % 10000,
+          messages: [
+            { role: 'system', content: systemMsg },
+            { role: 'user', content: userMsg },
+          ],
+        }),
       });
 
-      const raw = completion.choices?.[0]?.message?.content?.trim() || '';
-      // Validate it looks like an SVG
-      if (raw.startsWith('<svg') && raw.includes('</svg>')) {
-        console.log('Mechanical SVG generated (Groq)');
-        return raw;
+      if (!response.ok) {
+        console.error('Groq SVG error:', response.status, await response.text());
+        return this.getFallbackSVG(prompt, spec);
       }
-      throw new Error('Groq returned non-SVG content');
-    } catch (err: any) {
-      console.error('Mechanical SVG error:', err?.message || err);
-      // Fallback to deterministic SVG generator
-      return mechanicalSVG(d, geo);
+
+      const data = await response.json() as any;
+      const raw: string = data.choices?.[0]?.message?.content || '';
+      const svgMatch = raw.match(/<svg[\s\S]*?<\/svg>/);
+
+      if (!svgMatch) {
+        console.error('No valid SVG in Groq response for:', prompt);
+        return this.getFallbackSVG(prompt, spec);
+      }
+
+      const svg = svgMatch[0];
+      const elementCount = (svg.match(/<(rect|circle|line|path|polygon|text|g)\b/g) || []).length;
+      console.log(`Mechanical SVG: ${partType} | ${elementCount} elements | seed:${seed}`);
+
+      if (elementCount < 8) {
+        console.warn('SVG too simple, using fallback');
+        return this.getFallbackSVG(prompt, spec);
+      }
+
+      return svg;
+    } catch (err) {
+      console.error('generateMechanicalSVG error:', err);
+      return this.getFallbackSVG(prompt, spec);
     }
+  }
+
+  private getFallbackSVG(prompt: string, spec: any): string {
+    const data = spec._data;
+    const geo = spec._geo;
+    if (data && geo) {
+      return mechanicalSVG(data, geo);
+    }
+    return `<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="300" fill="#f0f0f0"/><text x="50" y="150">Fallback SVG for ${prompt}</text></svg>`;
+  }
+
+  private async generateEngineeringSVG(designType: string, prompt: string, spec: any): Promise<string> {
+    const partType = this.detectPartType(prompt);
+
+    if (designType === 'architectural') {
+      const seed = Math.floor(Math.random() * 999999);
+      const archPrompt = encodeURIComponent(
+        `professional architectural floor plan blueprint of ${prompt}, ` +
+        `top-down view, white lines on dark navy background, rooms labeled, ` +
+        `walls as thick lines, dimensions annotated, north arrow, title block, ` +
+        `scale bar, technical blueprint CAD style, no furniture, clean lines`
+      );
+      return `https://image.pollinations.ai/prompt/${archPrompt}?width=800&height=600&seed=${seed}&nologo=true&model=flux`;
+    }
+
+    return this.generateMechanicalSVG(prompt, spec, partType);
   }
 
   // ── generateArchitecturalImage (Pollinations) ──────────────────────────────
@@ -467,20 +769,30 @@ Output only the raw SVG string starting with <svg`;
     const geo   = buildGeometry(data, seed);
     const cad   = await this.generateCADGeometry(userPrompt);
 
+    const spec = {
+      specifications: {
+        dimensions: `${data.width}x${data.height}x${data.depth}mm`,
+        materials: [data.material],
+        weight: `${(data.width * data.height * data.depth * 0.00000785).toFixed(2)} kg`,
+        loadCapacity: `${data.load} kg`,
+        tolerance: geo.tolerance
+      },
+      _data: data,
+      _geo: geo
+    };
+
     const isMech = designType === 'mechanical';
-
-    // Mechanical → Groq SVG blueprint (with deterministic fallback)
-    // Architectural → Pollinations imageUrl (existing flow preserved)
     let svg: string;
-    let imageUrl: string|undefined;
+    let imageUrl: string | undefined;
 
-    if (isMech) {
-      svg = await this.generateMechanicalSVG(userPrompt, data, geo);
-      // Mechanical designs don't produce imageUrl
+    const svgContent = await this.generateEngineeringSVG(designType, userPrompt, spec);
+
+    if (designType === 'architectural') {
+      svg = ''; // Placeholder for blueprint as we now return a URL for image
+      imageUrl = svgContent;
     } else {
-      // Architectural: keep existing deterministic SVG + Pollinations image
-      svg = this.generateEngineeringSVG('architectural', data, geo);
-      imageUrl = this.generateArchitecturalImage(userPrompt, seed);
+      svg = svgContent;
+      imageUrl = undefined;
     }
 
     return {
@@ -505,14 +817,32 @@ Output only the raw SVG string starting with <svg`;
     };
   }
 
-  async analyzeDesign(designDescription: string, designType: 'mechanical'|'architectural' = 'mechanical') {
+  async analyzeDesign(input: string, _designType: 'mechanical'|'architectural' = 'mechanical') {
+    const score = calculateEngineeringScore(input);
+    const suggestions = generateEngineeringSuggestions(input);
+
+    const issuesCount = suggestions.length;
+
+    let summary = "";
+
+    if (score >= 90) summary = "Highly manufacturable design with minimal risks.";
+    else if (score >= 75) summary = "Minor optimization required for manufacturability.";
+    else if (score >= 50) summary = "Moderate engineering concerns detected.";
+    else if (score >= 30) summary = "High risk design with structural concerns.";
+    else summary = "Design is impractical or unsafe for manufacturing.";
+
+    const costEstimate =
+      score >= 90 ? "LOW" :
+      score >= 75 ? "MEDIUM" :
+      score >= 50 ? "HIGH" :
+      "VERY_HIGH";
+
     return {
-      score:80, costEstimate:500, issuesCount:2,
-      summary:`Analysis of ${designType}: ${designDescription.slice(0,80)}`,
-      suggestions:[
-        {title:'Check tolerances',description:'Verify manufacturing tolerances.',severity:'MEDIUM',impact:'Quality',source:'AI'},
-        {title:'Material review', description:'Consider weight-optimized alloys.',severity:'LOW',   impact:'Cost',   source:'AI'},
-      ],
+      score,
+      costEstimate,
+      issuesCount,
+      summary,
+      suggestions
     };
   }
 
