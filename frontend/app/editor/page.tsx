@@ -28,6 +28,7 @@ export default function EditorPage() {
   const [saving, setSaving] = useState(false)
   const [loadingProject, setLoadingProject] = useState(false)
   const [projectError, setProjectError] = useState<string | null>(null)
+  const [sourceType, setSourceType] = useState<'manual' | 'ai'>('manual')
 
   const { setZoom, setOffset } = store
 
@@ -35,6 +36,7 @@ export default function EditorPage() {
     metadata: {
       id: projectId || `local-${Date.now()}`,
       name: projectName,
+      sourceType: sourceType,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       version: '1.0',
@@ -46,7 +48,7 @@ export default function EditorPage() {
     dimensions: [],
     zoom: state.zoom || 1,
     pan: state.offset || { x: 0, y: 0 },
-  }), [projectId, projectName, state.elements, state.layers, state.constraints, state.zoom, state.offset]);
+  }), [projectId, projectName, sourceType, state.elements, state.layers, state.constraints, state.zoom, state.offset]);
 
   useAutosave(getEditorState);
 
@@ -56,7 +58,8 @@ export default function EditorPage() {
     if (s.pan) setOffset(s.pan);
     if (s.metadata?.name) setProjectName(s.metadata.name);
     if (s.metadata?.id) setProjectId(s.metadata.id);
-  }, [loadAIDesign, setZoom, setOffset, setProjectName, setProjectId]);
+    if (s.metadata?.sourceType) setSourceType(s.metadata.sourceType);
+  }, [loadAIDesign, setZoom, setOffset, setProjectName, setProjectId, setSourceType]);
 
 
   // Auth guard
@@ -85,7 +88,8 @@ export default function EditorPage() {
 
           console.log('[Editor] Design loaded successfully', design.id);
           setProjectId(design.id);
-          setProjectName(design.name)
+          setProjectName(design.name);
+          setSourceType(type as 'manual' | 'ai');
           loadAIDesign(design.data.elements, design.data.constraints)
         })
         .catch(async (err) => {
@@ -134,10 +138,10 @@ export default function EditorPage() {
   }, [loadAIDesign])
 
   async function handleSave() {
-    console.log('[SAVE] Initiating manual save...', { projectId, projectName });
+    console.log('[SAVE] Initiating manual save...', { projectId, projectName, sourceType });
     setSaving(true)
     try {
-      const saved = await designAPI.save(projectName, state.elements, state.constraints, projectId || undefined)
+      const saved = await designAPI.save(projectName, state.elements, state.constraints, projectId || undefined, sourceType)
       if (saved && saved.id) {
         setProjectId(saved.id);
         // Update URL without refresh to include ID if it's new
